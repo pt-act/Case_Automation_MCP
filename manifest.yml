@@ -1,0 +1,357 @@
+# Project manifest — the DAG of specs for the Case Automation MCP Server.
+# Schema: concept-of PROJECT_MANIFEST.md (§B). The manifest is the index;
+# specs/<id>/spec.md are the chapters. Append-only history; canonical for DAG.
+
+project:
+  name: case-automation-mcp
+  objective: >
+    Unify the immigration firm's case-management, CRM, email, and document
+    systems behind one Python MCP server that drafts and — only after a human
+    approval gate — executes intake, status updates, document generation and
+    routing, and deadline tracking, with every action audited and reversible by
+    default.
+  created: 2026-05-30
+  status: planning
+  operator: human:RA
+
+# ---------------------------------------------------------------------------
+# specs — the DAG. Status is `planned` for all: the specifications exist
+# (specs/<id>/spec.md), but no implementation artifacts have been produced yet.
+# `produces`/`consumes` are interface SUMMARIES; full contracts live in the
+# spec files. Cross-cutting reliance on platform-foundation config/observability
+# is captured by depends_on rather than enumerated as a data interface.
+# ---------------------------------------------------------------------------
+specs:
+
+  # ===== Layer 1: platform / foundation (units) =====
+
+  - id: platform-foundation
+    title: Platform foundation — domain model, persistence, audit, security baseline
+    type: unit
+    status: planned
+    file: specs/platform-foundation/spec.md
+    depends_on: []
+    produces:
+      - name: domain_model
+        shape: "pydantic_v2 entities{Contact, Matter, Document, Deadline, Communication, Task}"
+        consumers: [connector-framework, workflow-orchestration, data-extraction, qc-verification, deadline-engine, client-intake, status-update-emails, document-generation, document-routing]
+      - name: persistence
+        shape: "PostgreSQL + SQLAlchemy 2 repositories + Alembic migrations"
+        consumers: [connector-framework, workflow-orchestration, deadline-engine]
+      - name: audit_log
+        shape: "append-only hash-chained audit writer + export API{actor, action, inputs, outputs, approval, ts, run_id}"
+        consumers: [workflow-orchestration, qc-verification, deadline-engine]
+      - name: security_baseline
+        shape: "AES-256 at-rest + column token encryption, RBAC model, constrained service identity, PII redaction"
+        consumers: [connector-framework, workflow-orchestration, qc-verification, data-extraction]
+    consumes: []
+
+  - id: connector-framework
+    title: Connector framework — vendor-agnostic ports, webhooks, idempotency
+    type: unit
+    status: planned
+    file: specs/connector-framework/spec.md
+    depends_on: [platform-foundation]
+    produces:
+      - name: case_port
+        shape: "CaseConnector protocol{get_matter, upsert_matter, list_tasks, ...} (vendor-agnostic)"
+        consumers: [deadline-engine, client-intake]
+      - name: crm_port
+        shape: "CRMConnector protocol{find_contact, upsert_contact, ...}"
+        consumers: [client-intake]
+      - name: email_port
+        shape: "EmailConnector protocol{draft, send, log} (draft-by-default)"
+        consumers: [client-intake, status-update-emails]
+      - name: docstore_port
+        shape: "DocStoreConnector protocol{put, get, move(acl)}"
+        consumers: [document-generation, document-routing]
+      - name: webhook_events
+        shape: "normalised inbound Event stream (HMAC-verified, deduped) → trigger sink"
+        consumers: [workflow-orchestration]
+      - name: connector_error
+        shape: "typed taxonomy{auth, rate_limit, not_found, transient, fatal} for retry-vs-gate-vs-fail"
+        consumers: [workflow-orchestration]
+    consumes:
+      - name: domain_model
+        from: platform-foundation
+      - name: persistence
+        from: platform-foundation
+      - name: security_baseline
+        from: platform-foundation
+
+  - id: workflow-orchestration
+    title: Workflow orchestration — durable engine, gates, triggers
+    type: unit
+    status: planned
+    file: specs/workflow-orchestration/spec.md
+    depends_on: [platform-foundation, connector-framework]
+    produces:
+      - name: workflow_engine
+        shape: "durable resumable state-machine runtime; @workflow defs; run/step persistence; idempotency; retry/compensation; parked runs"
+        consumers: [deadline-engine, qc-verification, client-intake, status-update-emails]
+      - name: gate_contract
+        shape: "human-approval gate + 3 channels{mcp_callback, web_ui, email_action}; signed single-use expiring tokens; resume|reject"
+        consumers: [qc-verification, client-intake, status-update-emails]
+      - name: scheduler
+        shape: "schedule/timer trigger API for time-based runs"
+        consumers: [deadline-engine, status-update-emails]
+      - name: workflow_tools
+        shape: "MCP tools{workflow.run, workflow.status}"
+        consumers: [client-intake, status-update-emails]
+    consumes:
+      - name: domain_model
+        from: platform-foundation
+      - name: persistence
+        from: platform-foundation
+      - name: audit_log
+        from: platform-foundation
+      - name: security_baseline
+        from: platform-foundation
+      - name: webhook_events
+        from: connector-framework
+      - name: connector_error
+        from: connector-framework
+
+  # ===== Layer 2: core services / engines (units) =====
+
+  - id: data-extraction
+    title: Data extraction — text + OCR + provider-agnostic LLM structuring
+    type: unit
+    status: planned
+    file: specs/data-extraction/spec.md
+    depends_on: [platform-foundation]
+    produces:
+      - name: document_extract
+        shape: "MCP tool{document.extract} → fields mapped to domain_model + per-field confidence∈[0,1]; low-confidence flagged; proposes only, never writes system-of-record"
+        consumers: [client-intake, document-routing]
+    consumes:
+      - name: domain_model
+        from: platform-foundation
+      - name: security_baseline
+        from: platform-foundation
+
+  - id: qc-verification
+    title: QC verification — composable check registry feeding gates
+    type: unit
+    status: planned
+    file: specs/qc-verification/spec.md
+    depends_on: [platform-foundation, workflow-orchestration]
+    produces:
+      - name: qc_verify
+        shape: "MCP tool{qc.verify} runs checks{completeness, consistency, recipient_integrity, attachment_integrity, privilege, deadline_sanity, extraction_confidence} → pass|warn|fail; any fail blocks gate"
+        consumers: [status-update-emails, document-generation, document-routing]
+    consumes:
+      - name: domain_model
+        from: platform-foundation
+      - name: audit_log
+        from: platform-foundation
+      - name: security_baseline
+        from: platform-foundation
+      - name: workflow_engine
+        from: workflow-orchestration
+      - name: gate_contract
+        from: workflow-orchestration
+
+  - id: deadline-engine
+    title: Deadline engine — rule sets, business-day calc, reminders, escalation
+    type: unit
+    status: planned
+    file: specs/deadline-engine/spec.md
+    depends_on: [platform-foundation, connector-framework, workflow-orchestration]
+    produces:
+      - name: deadline_compute
+        shape: "MCP tool{deadline.compute} → business-day-adjusted due date from versioned rule set + ComputationTrace"
+        consumers: [client-intake]
+      - name: deadline_schedule
+        shape: "MCP tool{deadline.schedule} → persist + arm redundant reminders + escalation; dead-man's-switch; never silent-fail"
+        consumers: [client-intake]
+    consumes:
+      - name: domain_model
+        from: platform-foundation
+      - name: persistence
+        from: platform-foundation
+      - name: audit_log
+        from: platform-foundation
+      - name: case_port
+        from: connector-framework
+      - name: workflow_engine
+        from: workflow-orchestration
+      - name: scheduler
+        from: workflow-orchestration
+
+  # ===== Layer 3: workflows / compositions =====
+
+  - id: client-intake
+    title: Client intake — lead to structured matter (composition)
+    type: integration
+    status: planned
+    file: specs/client-intake/spec.md
+    depends_on: [platform-foundation, connector-framework, workflow-orchestration, data-extraction, deadline-engine]
+    produces:
+      - name: intake_workflow
+        shape: "MCP tool{intake.run} + prompt{intake_interview}: lead → contact + matter shell + opening tasks + drafted welcome (gated send)"
+        consumers: []
+    consumes:
+      - name: domain_model
+        from: platform-foundation
+      - name: crm_port
+        from: connector-framework
+      - name: email_port
+        from: connector-framework
+      - name: case_port
+        from: connector-framework
+      - name: workflow_engine
+        from: workflow-orchestration
+      - name: gate_contract
+        from: workflow-orchestration
+      - name: workflow_tools
+        from: workflow-orchestration
+      - name: document_extract
+        from: data-extraction
+      - name: deadline_compute
+        from: deadline-engine
+      - name: deadline_schedule
+        from: deadline-engine
+
+  - id: status-update-emails
+    title: Status-update emails — change to drafted update to gated send (composition)
+    type: integration
+    status: planned
+    file: specs/status-update-emails/spec.md
+    depends_on: [platform-foundation, connector-framework, workflow-orchestration, qc-verification]
+    produces:
+      - name: status_update_workflow
+        shape: "workflow: status-change → tailored draft → recipient-integrity QC → approval gate → send/log; idempotent one-send-per-change"
+        consumers: []
+    consumes:
+      - name: domain_model
+        from: platform-foundation
+      - name: email_port
+        from: connector-framework
+      - name: workflow_engine
+        from: workflow-orchestration
+      - name: gate_contract
+        from: workflow-orchestration
+      - name: scheduler
+        from: workflow-orchestration
+      - name: workflow_tools
+        from: workflow-orchestration
+      - name: qc_verify
+        from: qc-verification
+
+  - id: document-generation
+    title: Document generation — templates to versioned DOCX/PDF with QC
+    type: unit
+    status: planned
+    file: specs/document-generation/spec.md
+    depends_on: [platform-foundation, connector-framework, qc-verification]
+    produces:
+      - name: document_generate
+        shape: "MCP tools{document.generate, form.prefill} → DOCX/PDF, versioned+checksummed, gaps surfaced (never silent blanks), QC-checked, stored"
+        consumers: []
+    consumes:
+      - name: domain_model
+        from: platform-foundation
+      - name: docstore_port
+        from: connector-framework
+      - name: qc_verify
+        from: qc-verification
+
+  - id: document-routing
+    title: Document routing — classify, name, file, permission (privilege-aware composition)
+    type: integration
+    status: planned
+    file: specs/document-routing/spec.md
+    depends_on: [platform-foundation, connector-framework, qc-verification, data-extraction]
+    produces:
+      - name: document_route
+        shape: "MCP tool{document.route} → classify, name, file, ACL; privilege-aware (privileged doc never routed to external recipient)"
+        consumers: []
+    consumes:
+      - name: domain_model
+        from: platform-foundation
+      - name: docstore_port
+        from: connector-framework
+      - name: qc_verify
+        from: qc-verification
+      - name: document_extract
+        from: data-extraction
+
+# ---------------------------------------------------------------------------
+# milestones — reporting/deployment groupings by architectural layer.
+# Do NOT govern execution order (the DAG does). Layer names map loosely to the
+# PRD §12 / PTD §17 phases noted in comments.
+# ---------------------------------------------------------------------------
+milestones:
+  - name: foundations            # PRD Phase 0
+    specs: [platform-foundation, connector-framework, workflow-orchestration]
+    status: not_started
+  - name: core-services          # engines consumed by workflows (PRD Wave 1–2)
+    specs: [data-extraction, qc-verification, deadline-engine]
+    status: not_started
+  - name: workflows              # client-facing automations (PRD Wave 1–2)
+    specs: [client-intake, status-update-emails, document-generation, document-routing]
+    status: not_started
+
+# ---------------------------------------------------------------------------
+# history — append-only audit trail. Never edit or delete past entries.
+# This manifest is the spec-architect decomposition output; project status is
+# `planning` and the manifest is NOT yet locked (awaiting operator review per
+# PROJECT_MANIFEST §D steps 6–7). Lock flips status to `executing`.
+# ---------------------------------------------------------------------------
+history:
+  - timestamp: 2026-05-30T12:30:00Z
+    event: project_created
+    ref: case-automation-mcp
+    by: operator:RA
+    note: "objective set; built on concept/PRD.md + concept/PTD.md"
+  - timestamp: 2026-05-30T12:31:00Z
+    event: spec_added
+    ref: platform-foundation
+    by: spec-architect
+    note: "root; domain model, persistence, audit, security baseline"
+  - timestamp: 2026-05-30T12:32:00Z
+    event: spec_added
+    ref: connector-framework
+    by: spec-architect
+    note: "vendor-agnostic ports; adapters deferred until vendors confirmed"
+  - timestamp: 2026-05-30T12:33:00Z
+    event: spec_added
+    ref: workflow-orchestration
+    by: spec-architect
+    note: "durable engine + approval gates + triggers"
+  - timestamp: 2026-05-30T12:34:00Z
+    event: spec_added
+    ref: data-extraction
+    by: spec-architect
+    note: "provider-agnostic LLM structuring; proposes only"
+  - timestamp: 2026-05-30T12:35:00Z
+    event: spec_added
+    ref: qc-verification
+    by: spec-architect
+    note: "composable check registry; any fail blocks the gate"
+  - timestamp: 2026-05-30T12:36:00Z
+    event: spec_added
+    ref: deadline-engine
+    by: spec-architect
+    note: "liability-critical; never silent-fail"
+  - timestamp: 2026-05-30T12:37:00Z
+    event: spec_added
+    ref: client-intake
+    by: spec-architect
+    note: "integration; composes extraction + deadline + connectors + engine"
+  - timestamp: 2026-05-30T12:38:00Z
+    event: spec_added
+    ref: status-update-emails
+    by: spec-architect
+    note: "integration; composes engine + email + QC"
+  - timestamp: 2026-05-30T12:39:00Z
+    event: spec_added
+    ref: document-generation
+    by: spec-architect
+    note: "rendering engine; QC-gated, gaps surfaced"
+  - timestamp: 2026-05-30T12:40:00Z
+    event: spec_added
+    ref: document-routing
+    by: spec-architect
+    note: "integration; privilege-aware classify/file/permission"
