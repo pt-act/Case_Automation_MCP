@@ -1,0 +1,183 @@
+/*
+ * Global Design Tokens — Case Automation MCP Docs
+ * WCAG 2.1 AA compliant
+ */
+
+:root {
+  /* Base */
+  --bg: 250 250 252;
+  --panel: 255 255 255 / 0.72;
+  --panel-border: 24 24 27 / 0.08;
+  --text: 24 24 27;
+  --text-muted: 82 82 91;
+  --accent: 124 58 237;
+  --accent-light: 167 139 250;
+  --accent-dark: 109 40 217;
+
+  /* Surfaces */
+  --radius-xl: 1.25rem;
+  --radius-lg: 0.75rem;
+  --radius-md: 0.5rem;
+  --shadow-soft: 0 8px 30px rgba(0,0,0,0.06);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.08);
+
+  /* Typography scale */
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --text-3xl: 1.875rem;
+  --text-4xl: 2.25rem;
+  --text-5xl: 3rem;
+
+  /* Spacing rhythm (8px base) */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+  --space-20: 5rem;
+}
+
+.dark {
+  --bg: 9 9 11;
+  --panel: 24 24 27 / 0.66;
+  --panel-border: 255 255 255 / 0.08;
+  --text: 250 250 250;
+  --text-muted: 161 161 170;
+  --accent: 167 139 250;
+  --accent-light: 196 181 253;
+  --accent-dark: 139 92 246;
+}
+
+/* Hero atmosphere */
+.hero-atmosphere {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+}
+
+.hero-atmosphere::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at top right, rgba(124,58,237,0.18), transparent 35%),
+              radial-gradient(circle at top left, rgba(14,165,233,0.12), transparent 28%);
+}
+
+.hero-atmosphere::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to right, rgba(120,120,120,0.08) 1px, transparent 1px),
+              linear-gradient(to bottom, rgba(120,120,120,0.08) 1px, transparent 1px);
+  background-size: 18px 18px;
+  mask-image: linear-gradient(to bottom, white, transparent);
+}
+
+/* Premium frosted panels */
+.frosted-panel {
+  border-radius: var(--radius-xl);
+  border: 1px solid rgba(var(--panel-border));
+  background: rgba(var(--panel));
+  box-shadow: var(--shadow-soft);
+  backdrop-filter: blur(20px);
+}
+
+/* Capability cards */
+.capability-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-6);
+  border-radius: var(--radius-xl);
+  border: 1px solid rgba(var(--panel-border));
+  background: rgba(var(--panel));
+  box-shadow: var(--shadow-soft);
+  backdrop-filter: blur(20px);
+  transition: transform 150ms ease, box-shadow 150ms ease;
+}
+
+.capability-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+/* Callout system */
+.callout {
+  padding: var(--space-4) var(--space-6);
+  border-radius: var(--radius-lg);
+  border-left: 3px solid;
+  margin: var(--space-6) 0;
+}
+
+.callout-info {
+  background: rgba(59, 130, 246, 0.08);
+  border-color: rgb(59, 130, 246);
+}
+
+.callout-success {
+  background: rgba(34, 197, 94, 0.08);
+  border-color: rgb(34, 197, 94);
+}
+
+.callout-warning {
+  background: rgba(234, 179, 8, 0.08);
+  border-color: rgb(234, 179, 8);
+}
+
+.callout-danger {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgb(239, 68, 68);
+}
+
+/* Status badges */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  border-radius: 9999px;
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.status-ready {
+  background: rgba(34, 197, 94, 0.12);
+  color: rgb(21, 128, 61);
+}
+
+.status-beta {
+  background: rgba(234, 179, 8, 0.12);
+  color: rgb(161, 98, 7);
+}
+
+.status-stub {
+  background: rgba(156, 163, 175, 0.12);
+  color: rgb(107, 114, 128);
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .capability-card {
+    transition: none;
+  }
+  .capability-card:hover {
+    transform: none;
+  }
+}
+
+/* Max prose width */
+.prose-max {
+  max-width: 72ch;
+}
+
+.hero-prose {
+  max-width: 80ch;
+}
