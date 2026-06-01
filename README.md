@@ -53,7 +53,7 @@ MCP client (Claude / agent)
 Persistence: PostgreSQL + Redis
 ```
 
-See [`concept/PTD.md`](concept/PTD.md) for the full technical design and [`manifest.yml`](manifest.yml) for the 10-spec dependency DAG.
+See [`docs/PTD.md`](concept/PTD.md) for the full technical design and [`manifest.yml`](manifest.yml) for the 10-spec dependency DAG.
 
 ---
 
