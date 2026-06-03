@@ -175,7 +175,8 @@ def run_checks(
             if exc is not None:
                 raise exc
             result = raw_result
-            assert result is not None
+            if result is None:
+                raise AssertionError
 
             # Severity-policy enforcement
             if result.verdict != Verdict.SKIPPED and not check.severity_policy.allows(result.verdict):
