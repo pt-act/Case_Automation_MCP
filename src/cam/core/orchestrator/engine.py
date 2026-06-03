@@ -104,7 +104,8 @@ class WorkflowEngine:
             if defn.is_gate(step_name):
                 await self._handle_gate(run, step_state, defn.gate_config(step_name))
                 result = await self.store.get_run(run_id)
-                assert result is not None
+                if result is None:
+                    raise AssertionError
                 return result
 
             # ── Normal step ────────────────────────────────────────────
@@ -192,7 +193,8 @@ class WorkflowEngine:
                 else:
                     await self._park(run_id, err, compensations)
                     parked = await self.store.get_run(run_id)
-                    assert parked is not None
+                    if parked is None:
+                        raise AssertionError
                     return parked
 
         # All steps completed
@@ -200,7 +202,8 @@ class WorkflowEngine:
         await self._audit("run.succeeded", run_id, {}, {})
         log.info("engine.run_succeeded", run_id=run_id)
         final = await self.store.get_run(run_id)
-        assert final is not None
+        if final is None:
+            raise AssertionError
         return final
 
     async def _handle_gate(
