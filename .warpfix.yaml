@@ -1,0 +1,30 @@
+# .warpfix.yaml
+review:
+  profile: assertive
+  auto_review: true
+  path_instructions:
+    - glob: "src/auth/**"
+      instruction: "Check for security vulnerabilities"
+    - glob: "**/*.test.js"
+      instruction: "Verify test coverage"
+  ignore_paths:
+    - "dist/**"
+    - "*.min.js"
+
+repair:
+  auto_fix: true
+  min_confidence: 60
+  skip_branches:
+    - "release/*"
+
+analysis:
+  dead_code: true
+  security_scan: true
+  predictive_ci: true
+
+quality_gates:
+  - name: "No console.log in production"
+    rule: "No console.log in src/ files"
+
+chat:
+  enabled: true
