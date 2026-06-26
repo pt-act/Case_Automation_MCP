@@ -1,6 +1,6 @@
 # Case Automation MCP Server
 
-A Python **Model Context Protocol (MCP) server** that unifies a US immigration law firm's case-management, CRM, email, and document systems behind one AI-orchestratable surface — with mandatory human-in-the-loop gates, a fully auditable hash-chained log, and privilege-aware document routing.
+A Python **Model Context Protocol (MCP) server** for any caseworked, deadline-driven, document-heavy practice — it unifies case-management, CRM, email, and document systems behind one AI-orchestratable surface, with mandatory human-in-the-loop gates, a fully auditable hash-chained log, and confidentiality-aware document routing. The engine is domain-agnostic and configured via swappable **domain packs**; immigration ships as the reference pack.
 
 > Status: **Planning → MVP** | Vendors not yet confirmed (see [`docs/ASSUMPTIONS.md`](docs/ASSUMPTIONS.md))
 
@@ -54,6 +54,10 @@ Persistence: PostgreSQL + Redis
 ```
 
 See [`docs/PTD.md`](concept/PTD.md) for the full technical design and [`manifest.yml`](manifest.yml) for the 10-spec dependency DAG.
+
+### Domain packs
+
+The engine is fixed; everything practice-specific lives in a swappable **domain pack** loaded once at startup. A pack supplies terminology (Matter / Case / Engagement / Claim; the confidentiality label), case types and intake checklists, deadline rule sets, document classes, QC packet kinds, the confidentiality/restriction policy, RBAC roles, and PII pattern additions. One active pack per deployment, selected via the `CAM_DOMAIN_PACK` environment variable. There is **no implicit default** — if `CAM_DOMAIN_PACK` is unset or unknown the server refuses to serve. Immigration ships as the reference pack (`packs/immigration`, 1:1 with today's behaviour); `packs/consulting` proves generality. A pack can only **tighten** the two engine-owned safety guarantees (the confidentiality gate and the PII redaction floor), never weaken them.
 
 ---
 
@@ -135,6 +139,7 @@ Copy `.env.example` to `.env` and fill in values:
 
 | Variable | Required | Description |
 |---|---|---|
+| `CAM_DOMAIN_PACK` | Yes | Active domain pack id (e.g. `immigration`, `consulting`). No implicit default — unset/unknown means refuse to serve |
 | `CAM_DATABASE_URL` | Yes | PostgreSQL async URL (`postgresql+asyncpg://...`) |
 | `CAM_REDIS_URL` | Yes | Redis URL (`redis://localhost:6379/0`) |
 | `CAM_SECRET_BACKEND` | No | `env` (default) · `vault` · `kms` |
@@ -164,6 +169,7 @@ Copy `.env.example` to `.env` and fill in values:
 ```
 src/cam/
 ├── config/              12-factor settings, secret loaders, feature flags
+├── packs/               Domain packs: base contract + immigration (reference) + consulting
 ├── core/
 │   ├── audit/           Hash-chained audit log service
 │   ├── domain/          Canonical Pydantic v2 domain model (Contact, Matter, …)
@@ -174,7 +180,7 @@ src/cam/
 │   │   └── qc/          Composable check registry (7 checks, any-fail-blocks)
 │   └── workflows/
 │       ├── document_gen/    Template → DOCX/PDF pipeline
-│       ├── document_routing/ Classify, name, file, ACL, privilege gate
+│       ├── document_routing/ Classify, name, file, ACL, confidentiality/restriction gate (privilege in the immigration pack)
 │       ├── intake/          Lead → matter intake workflow
 │       └── status_update/   Status-change → draft → gate → send
 ├── connectors/          Ports (Protocols) + reference adapters + webhook ingestion
@@ -210,8 +216,8 @@ concept/                 PRD.md and PTD.md — product + technical design
 ## Security notes
 
 - **No credentials in source.** Secrets are read from the secret store at runtime.
-- **PII never in logs/traces.** A shared scrubber redacts A-numbers, SSNs, passport numbers, DOB, email, and phone across all three observability signals.
-- **Privilege gate is non-overridable.** A `Document.privileged=True` document can never reach an external recipient, regardless of approval tokens.
+- **PII never in logs/traces.** A shared scrubber enforces an engine baseline (email, phone, SSN/ITIN, DOB) that packs can only extend; the immigration pack adds A-numbers and passport numbers. Redaction runs across all three observability signals.
+- **Confidentiality/restriction gate is non-overridable (privilege in the immigration pack).** A restricted document (`Document.restricted=True`, with `privileged` as a permanent alias) can never reach an external recipient, regardless of approval tokens. The gate fails closed and is engine-owned; a pack may only tighten it.
 - **Every write audited before completion.** Hash-chained, append-only, tamper-evident.
 - See [`concept/PTD.md §12`](concept/PTD.md) for the full security design.
 
@@ -220,6 +226,15 @@ concept/                 PRD.md and PTD.md — product + technical design
 ## Contributing
 
 See [`CONTRIBUTING.md`](CONTRIBUTING.md).
+
+## License
+
+See [`LICENSE`](LICENSE).
+
+## Assumptions pending firm confirmation
+
+See [`docs/ASSUMPTIONS.md`](docs/ASSUMPTIONS.md) for the full list of design decisions that require the firm to confirm (vendors, rule contents, case types, policies).
+
 
 ## License
 
