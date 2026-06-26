@@ -1,0 +1,205 @@
+import { PremiumCallout } from '../../components/PremiumCallout'
+import { Card } from '../../components/Card'
+
+# Domain Packs
+
+**Audience:** Engineers and integration leads standing the engine up for a specific practice — or evaluating whether it fits a non-legal domain.
+**What you will accomplish:** Understand how the engine is made domain-agnostic, what a domain pack contains, the two safety guarantees a pack can never weaken, and how to author a new pack.
+**Prerequisites:** Read [Architecture](/architecture/) first — you need the component model and the normalised domain model to follow this page.
+**Estimated time:** ~12 minutes.
+
+The engine is **domain-agnostic by design**. The core entities — `Matter`, `Contact`, `Document`, `Deadline`, `Communication`, `Task` — carry no practice semantics. Everything practice-specific lives in a **domain pack**, loaded once at startup. Swap the pack and the same hardened core serves a different practice; the orchestrator, audit chain, crypto, scheduler, and connector ports never change.
+
+> **Immigration is the reference pack, not the product.** The US immigration build ships as `packs/immigration` and reproduces the original behaviour 1:1. A second pack (`packs/consulting`) proves generality: same engine, different practice, zero core edits.
+
+## What a domain pack contains
+
+A pack is a single typed bundle. Every domain-specific value the engine reads is reachable from the active pack — and from no in-engine default.
+
+<div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+  <Card
+    title="Terminology"
+    description="Display labels for the neutral entities and the confidentiality concept — 'Matter' vs 'Case' vs 'Engagement' vs 'Claim'. Feeds prompts, documents, emails, UI. Never renames the code types."
+    status="ready"
+    icon={
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/></svg>
+    }
+  />
+  <Card
+    title="Case types & dedupe"
+    description="The practice's case/matter types, their required intake fields, opening-task checklists, and the identifier set + thresholds used for contact de-duplication."
+    status="ready"
+    icon={
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7h18M3 12h18M3 17h18"/></svg>
+    }
+  />
+  <Card
+    title="Deadline rule sets"
+    description="The declarative, versioned rules the deadline engine computes from. The business-day math, reminders, escalation, and dead-man's-switch stay engine-owned."
+    status="ready"
+    icon={
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
+    }
+  />
+  <Card
+    title="Classes, policy, roles"
+    description="Document-class enumeration, QC packet kinds + consistency identifiers, the confidentiality restriction policy, RBAC roles, template ids, and PII pattern additions."
+    status="ready"
+    icon={
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+    }
+  />
+</div>
+
+### The contract
+
+```python
+class DomainPack(Protocol):
+    name: str                         # stable id, e.g. "immigration"
+    version: str                      # semver; recorded in audit/obs
+    terminology: Terminology
+    case_types: dict[str, CaseTypeConfig]      # consumed by client-intake
+    default_case_type: str
+    dedupe: DedupeConfig
+    deadline_rules: list[DeadlineRule]          # consumed by deadline-engine
+    document_classes: tuple[str, ...]           # consumed by document-routing
+    packet_kinds: tuple[str, ...]               # consumed by qc-verification
+    consistency_identifiers: tuple[str, ...]
+    restriction: RestrictionPolicy              # generalised confidentiality gate
+    rbac_roles: dict[str, frozenset[str]]
+    pii_patterns: tuple[re.Pattern[str], ...]   # ADDED to the engine baseline
+    template_ids: frozenset[str]
+    feature_flags: dict[str, bool]
+```
+
+A pack is *data assembly plus terminology and policy*. It contains no engine logic and performs no I/O.
+
+## The engine / pack split
+
+| The engine provides (fixed) | The domain pack supplies (swappable) |
+|---|---|
+| Workflow orchestration, gates, idempotency, crash recovery | Terminology (Matter / Case / Engagement / Claim) |
+| Hash-chained audit, AES-256 crypto, RBAC *mechanics* | Case types + required fields + opening tasks |
+| Business-day math, reminders, escalation, dead-man's-switch | Deadline rule sets |
+| Fail-closed confidentiality gate + PII redaction floor | Confidentiality *label* + document classes + packet kinds |
+| Connector ports + webhook ingestion | RBAC *roles* + PII pattern *additions* + template ids |
+
+## Two guarantees a pack can never weaken
+
+This is the heart of the design. Generalising the engine must not generalise away its safety. Two surfaces are **engine-owned**; a pack may only *tighten* them.
+
+### 1. The confidentiality gate (generalised privilege)
+
+The immigration build's privilege gate becomes a configurable `RestrictionPolicy`. A pack supplies the **label** ("Privileged", "Client-Confidential", "Restricted") and may add *stricter* predicates — but the engine's mechanics are fixed:
+
+- Re-derives external-bound recipients (any recipient outside matter participants → external) and takes the **stricter** of the caller claim vs the re-derivation.
+- A `restricted` document in an external-bound packet → **`fail`**, no exceptions, **never `warn`**.
+- Pack predicates may only turn a `pass` into a `fail` — never a `fail` into a `pass`. A pack that cannot be *proven* tighten-only is rejected at load.
+
+<PremiumCallout tone="danger" title="Tighten-only, fail-closed">
+  The confidentiality check is the highest-stakes operation in the system. A domain pack changes what it is <em>called</em> and can make it <em>stricter</em>. It can never make a restricted document reachable by an external recipient. Property-based tests assert no pack input produces a fail&nbsp;→&nbsp;pass.
+</PremiumCallout>
+
+### 2. The PII redaction floor
+
+Redaction is composed as `engine_baseline ∪ pack_patterns`. The baseline — email, phone, SSN/ITIN, date-of-birth — is **non-removable**. A pack only *adds* (the immigration pack adds A-number and passport patterns). No pack can shrink what gets redacted from logs, traces, and audit.
+
+## Backward compatibility
+
+The generalisation lands without breaking the existing 424-test suite:
+
+- `Document.restricted` is the canonical confidentiality flag; **`Document.privileged` is a permanent alias** of it (same backing column — no migration).
+- The QC check keeps the id `privilege` as an **alias** of the canonical `restriction` check.
+- With the immigration pack active, every verdict, reason string, and audit record reads exactly as before.
+
+## Load-time validation (fail-closed)
+
+`select_pack()` validates before a pack becomes active. Any failure raises `PackValidationError` and the server **refuses to serve** — there is no silent fallback.
+
+| Check | Rejects a pack that… |
+|---|---|
+| Completeness | omits a contract field, leaves a terminology slot blank, or has `default_case_type ∉ case_types` |
+| Restriction conformance | sets `default_restricted = False` or supplies a predicate that flips a `fail` to a `pass` |
+| PII-floor preservation | would redact less than the engine baseline |
+| Referential integrity | references a missing template/rule id, an empty class, or omits an engine-required RBAC role |
+
+## Selecting a pack
+
+There is **no implicit default**. `CAM_DOMAIN_PACK` is required; unset or unknown → refuse to serve.
+
+```bash
+# Immigration reference pack (parity with the original build)
+CAM_DOMAIN_PACK=immigration uv run uvicorn cam.sidecar.main:app --port 8001
+
+# Consulting/advisory reference pack
+CAM_DOMAIN_PACK=consulting uv run uvicorn cam.sidecar.main:app --port 8001
+```
+
+Exactly one pack is active per process (v1). Per-tenant pack selection is part of the multi-tenancy roadmap.
+
+## Authoring a new pack
+
+Adding a pack requires **no edit to engine or core** — the diff is scoped to `packs/` plus registration.
+
+1. Create `src/cam/packs/<name>/` and assemble a `DomainPack`: fill every surface, every `Terminology` slot, and a tighten-only `RestrictionPolicy` (`default_restricted=True`).
+2. Register it — `register_pack(...)` — or declare a `[project.entry-points."cam.packs"]` entry point.
+3. Run the pack-conformance harness: `run_pack_conformance(pack)` (completeness, validation, restriction tighten-only, PII-floor, referential integrity).
+4. Ship a `PACK.md` (capabilities, terminology, restriction semantics, PII additions, case types, rule provenance). CI fails if it's missing.
+5. Select it with `CAM_DOMAIN_PACK=<name>`.
+
+```python
+from cam.packs import DomainPack, Terminology, RestrictionPolicy, register_pack
+
+CONSULTING = DomainPack(
+    name="consulting", version="0.1.0",
+    terminology=Terminology(
+        matter="Engagement", matter_plural="Engagements",
+        contact="Client", deadline="Key Date",
+        restriction_label="Client-Confidential", practice_noun="service line",
+    ),
+    # case_types, deadline_rules, document_classes, packet_kinds,
+    # consistency_identifiers, rbac_roles, template_ids, feature_flags ...
+    restriction=RestrictionPolicy(label="Client-Confidential", default_restricted=True),
+    pii_patterns=(),   # inherits the full engine PII floor
+)
+
+register_pack(CONSULTING)
+```
+
+<PremiumCallout tone="info" title="In-repo packs only for v1">
+  The entry-point plugin mechanism exists, but third-party pack distribution is not a supported v1 channel — packs configure safety-critical behaviour, so only reviewed, in-repo packs ship. A pack marketplace is on the roadmap.
+</PremiumCallout>
+
+## Design decisions
+
+The pack model was finalised with these calls (full record in the spec package `§13`):
+
+| # | Decision |
+|---|---|
+| D-1 | One active pack per deployment; per-tenant selection deferred to multi-tenancy |
+| D-2 | PII baseline floor (email, phone, SSN/ITIN, DOB) is engine-owned; packs add on top |
+| D-3 | `Document.privileged` and the `privilege` check id are permanent aliases |
+| D-4 | Second reference pack = consulting/advisory practice |
+| D-5 | No implicit default pack; `CAM_DOMAIN_PACK` required, else refuse to serve |
+| D-6 | Reuse the existing `privileged` column for `restricted` — no migration |
+| D-7 | In-repo packs only for v1; entry-point loading present but not a distribution channel |
+
+## Verification
+
+After reading this page, you should be able to:
+
+1. Name the two safety surfaces a pack can only tighten, never weaken.
+2. Explain why a pack that sets `default_restricted = False` is rejected at load.
+3. Describe what `CAM_DOMAIN_PACK` controls and what happens when it is unset.
+4. List the steps to add a new pack without editing core.
+
+## Next steps
+
+- [**Core Services**](/capabilities/core-services/) — The deadline, QC, and extraction engines a pack configures
+- [**Connector Layer**](/capabilities/connector-layer/) — Vendor-agnostic ports (the sibling seam to domain packs)
+- [**Security: RBAC & Confidentiality**](/security/rbac-privilege/) — How the restriction policy and roles are enforced
+- [**Architecture**](/architecture/) — The component model and design invariants
+
+---
+
+*Last updated: 2026-06-25*
