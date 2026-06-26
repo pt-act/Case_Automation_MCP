@@ -55,7 +55,7 @@ Persistence: PostgreSQL + Redis
 
 See [`docs/PTD.md`](concept/PTD.md) for the full technical design and [`manifest.yml`](manifest.yml) for the 10-spec dependency DAG.
 
-### Domain packs
+### Domain packs (Under Development)
 
 The engine is fixed; everything practice-specific lives in a swappable **domain pack** loaded once at startup. A pack supplies terminology (Matter / Case / Engagement / Claim; the confidentiality label), case types and intake checklists, deadline rule sets, document classes, QC packet kinds, the confidentiality/restriction policy, RBAC roles, and PII pattern additions. One active pack per deployment, selected via the `CAM_DOMAIN_PACK` environment variable. There is **no implicit default** — if `CAM_DOMAIN_PACK` is unset or unknown the server refuses to serve. Immigration ships as the reference pack (`packs/immigration`, 1:1 with today's behaviour); `packs/consulting` proves generality. A pack can only **tighten** the two engine-owned safety guarantees (the confidentiality gate and the PII redaction floor), never weaken them.
 
