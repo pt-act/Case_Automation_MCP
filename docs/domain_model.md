@@ -25,7 +25,7 @@ A case / file / engagement (here: an immigration case).
 | `reference` | `string` | ✓ | Firm-assigned matter reference number. |
 | `title` | `string` | ✓ | Short descriptive title. |
 | `status` | `string` | ✓ | Current matter status string (vendor-specific values normalised). |
-| `practice_area` | `string | null` |  | Practice area, e.g. 'family-based', 'employment-based'. |
+| `practice_area` | `string | null` |  | Practice area / case type from the active domain pack. |
 | `client` | `Contact` | ✓ | Primary client contact. |
 | `responsible` | `string | null` |  | Responsible attorney id or name. |
 | `opened_at` | `string` | ✓ | UTC instant the matter was opened. |
@@ -45,7 +45,7 @@ A stored document associated with a matter.
 | `uri` | `string` | ✓ | Storage URI (object store or doc-system path). |
 | `classification` | `string | null` |  | Document class, e.g. 'engagement_letter', 'court_filing'. |
 | `version` | `integer` | ✓ | Monotonically increasing version counter. |
-| `privileged` | `boolean` |  | Attorney–client privilege flag. |
+| `privileged` | `boolean` |  | Confidentiality flag — backing store for the canonical `restricted` accessor. Labelled per the active domain pack's RestrictionPolicy ('Privileged' in the immigration pack, 'Client-Confidential' in consulting). Defaults True (fail-safe). |
 | `checksum` | `string` | ✓ | SHA-256 hex digest of the stored bytes. |
 | `created_at` | `string` | ✓ | UTC creation instant. |
 

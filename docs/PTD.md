@@ -145,6 +145,75 @@ class Task(BaseModel):
 
 Mapping is the connector's job; the core never sees a Clio JSON blob.
 
+The domain model carries **no practice semantics** of its own: `Matter`,
+`Document`, `Deadline`, etc. are structural. Practice-specific meaning (case
+types, document classes, the confidentiality label, deadline rules) is supplied
+by the active **domain pack** (§4.1).
+
+---
+
+## 4.1 Domain packs
+
+The product is a **fixed engine** plus a **swappable domain pack**. The engine
+owns orchestration, gates, audit, the connector framework, the QC registry, and
+the two safety guarantees below. Everything practice-specific is data/config
+inside a pack, loaded once at startup. Immigration is the **reference pack**;
+the engine ships no domain knowledge of its own.
+
+### Pack contract surfaces
+
+A `DomainPack` bundles, behind a typed contract:
+
+- **terminology** — labels (the matter label: Matter / Case / Engagement /
+  Claim; the client label; the confidentiality label);
+- **case types** — required intake fields and opening-task checklists;
+- **deadline rule sets**, **document classes**, **QC packet kinds** +
+  consistency identifiers;
+- **RestrictionPolicy** — the confidentiality / restriction policy (generalises
+  the immigration "privilege" gate);
+- **RBAC roles** and **PII pattern additions**.
+
+### Selection & load-time validation
+
+The active pack is chosen by the `CAM_DOMAIN_PACK` environment variable. There
+is **no implicit default**: at startup the engine resolves and validates the
+pack; if `CAM_DOMAIN_PACK` is unset or names an unknown pack, the server
+**refuses to serve** (fail-closed). One active pack per deployment; per-tenant
+selection is deferred to a future multi-tenancy phase.
+
+### Tighten-only safety guarantees
+
+A pack may only **tighten** two engine-owned invariants, never weaken them:
+
+1. **RestrictionPolicy / confidentiality gate.** The engine enforces that no
+   restricted document reaches an external recipient (QC §11). A pack's policy
+   can restrict *more*, never less; the gate fails closed and never downgrades a
+   block to a warning.
+2. **PII redaction floor.** The engine baseline (email, phone, SSN/ITIN, DOB) is
+   non-removable. A pack's PII patterns **compose by addition only** — they
+   extend the floor (immigration adds A-number + passport); they cannot remove a
+   baseline pattern.
+
+### Backward compatibility
+
+- `Document.restricted` is the **canonical** confidentiality flag;
+  `Document.privileged` is a **permanent alias** of it — the same column, so no
+  DB migration.
+- The QC check id `privilege` is a permanent alias of the canonical
+  `restriction` check.
+- With the immigration pack active, all behaviour and strings are identical to
+  today.
+
+### Reference + proof packs
+
+- `packs/immigration` — the **reference pack**, reproducing today's immigration
+  behaviour 1:1.
+- `packs/consulting` — a **proof pack** for a consulting/advisory practice
+  (terminology Engagement / Client / Client-Confidential), demonstrating that
+  the engine carries no domain assumptions.
+
+The module lives at `src/cam/packs/` (base contract + the packs above).
+
 ---
 
 ## 5. MCP surface
@@ -336,7 +405,7 @@ A composable check registry run by `qc.verify` and as workflow gate inputs:
 | Consistency | client name/date-of-birth/matter ref identical across all docs in a packet |
 | Recipient integrity | email recipient ∈ matter participants; right client |
 | Attachment integrity | referenced attachments present & correct version |
-| Privilege | privileged docs not routed to external recipients |
+| Restriction (`privilege` alias) | restricted docs not routed to external recipients; engine-owned, fail-closed, pack may only tighten |
 | Deadline sanity | computed dates within plausible bounds; no past-due on create |
 | Extraction confidence | flagged fields below threshold |
 
@@ -409,6 +478,7 @@ case_automation_mcp/
 │   │   ├── base.py        # ports (Protocols) + ConnectorError taxonomy
 │   │   ├── case_clio/     # + CONNECTOR.md, contract tests
 │   │   ├── crm_*/  email_*/  docs_*/
+│   ├── packs/            # domain packs: base contract + immigration (ref) + consulting
 │   ├── persistence/       # SQLAlchemy models, Alembic migrations
 │   └── config/            # settings, secret loading, feature flags
 ├── tests/                 # unit + connector contract tests

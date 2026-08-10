@@ -5,24 +5,28 @@
 **Last updated:** 2026-05-29
 **Companion doc:** `file PTD.md` (technical design)
 
-> **Domain assumption (flagged for correction):** This PRD is written for a
-****legal / professional-services** practice — the language of *matters, client
-> intake, statutes of limitation, document routing* drove the design. The
-> integration layer is deliberately vendor-agnostic, so the same product
-> generalises to any caseworked, deadline-driven, document-heavy practice
-> (immigration, accounting, claims, compliance, agency ops). If your domain
-> differs, the use cases and connectors shift but the architecture holds.
+> **Domain stance (decided):** This product is **domain-configurable**. The
+> engine is domain-agnostic; everything practice-specific is supplied by a
+> swappable **domain pack** (see §3.1). Immigration is the **reference pack**
+> — the worked example used throughout this PRD — not the product. The same
+> engine serves any caseworked, deadline-driven, document-heavy practice
+> (immigration, accounting, claims, compliance, agency ops, consulting). Where
+> this doc uses immigration language (*matters, client intake, statutes of
+> limitation, privileged documents*), read it as the reference pack's
+> vocabulary; the architecture holds and the use cases/connectors shift per
+> pack.
 
 ---
 
 ## 1. Summary
 
-A **Model Context Protocol (MCP) server**, written in Python, that turns the
-firm's fragmented operational stack — case/matter management, CRM, email, and
-document systems — into a single, AI-orchestratable surface. It lets an LLM
-agent (and scheduled/automated triggers) **read state, take action, and run
-multi-step workflows** across systems that today require manual copy-paste
-between tabs.
+A **Model Context Protocol (MCP) server**, written in Python, that turns a
+practice's fragmented operational stack — case/matter management, CRM, email, and
+document systems — into a single, AI-orchestratable surface. The engine is
+domain-agnostic and configured by a **domain pack** (immigration as the
+reference pack; see §3.1). It lets an LLM agent (and scheduled/automated
+triggers) **read state, take action, and run multi-step workflows** across
+systems that today require manual copy-paste between tabs.
 
 It is **not** a chatbot bolted onto one tool. It is the *connective tissue and
 workflow engine* underneath the AI: a governed set of tools, resources, and
@@ -79,6 +83,39 @@ point integrations (Zapier-style) are brittle, hard to govern, and can't reason.
 - No legal advice generation; the AI assists, licensed humans decide.
 - Not a general customer-facing chatbot.
 - No bulk data migration tooling (separate effort).
+
+### 3.1 Domain packs
+
+The product splits into a **fixed engine** and a **swappable domain pack**. The
+engine owns orchestration, gates, audit, the connector framework, and the two
+safety guarantees below. A pack bundles everything practice-specific — loaded
+once at startup and selected by the `CAM_DOMAIN_PACK` environment variable:
+
+- terminology (the matter label — Matter / Case / Engagement / Claim — the
+  client label, and the confidentiality label);
+- case types, required intake fields, and opening-task checklists;
+- deadline rule sets, document classes, QC packet kinds + consistency identifiers;
+- the confidentiality / restriction policy (generalises the immigration
+  "privilege" gate), RBAC roles, and PII pattern additions.
+
+**One active pack per deployment** (per-tenant selection is deferred to a future
+multi-tenancy phase). **No implicit default:** if `CAM_DOMAIN_PACK` is unset or
+unknown, the server refuses to serve.
+
+**Two engine-owned safety guarantees a pack can only TIGHTEN, never weaken:**
+
+1. **Confidentiality gate** — no restricted document reaches an external
+   recipient. Fail-closed; it blocks, it never merely warns.
+2. **PII redaction floor** — the engine baseline (email, phone, SSN/ITIN, DOB)
+   is non-removable; packs may only **add** patterns (immigration adds A-number
+   and passport).
+
+**Immigration ships as the reference pack** (reproduces today's behaviour 1:1);
+a **consulting** pack (terminology Engagement / Client / Client-Confidential)
+proves generality. Backward compatibility is preserved: `Document.restricted` is
+the canonical confidentiality flag with `privileged` as a permanent alias, and
+the QC check id `privilege` is a permanent alias of the canonical `restriction`
+check.
 
 ---
 

@@ -149,15 +149,36 @@ When the firm confirms or changes an assumption:
 
 ---
 
+## Domain packs
+
+Cross-ref: `specs/domain-packs/spec.md §13` (resolved decisions, PM sign-off
+2026-06-25) and `src/cam/packs/`. D-1–D-8 are **engineering decisions**, not open
+questions — they supersede the inline `ASSUMPTION (confirm)` markers in the
+domain-packs package. The remaining `pending` rows are pack *contents* that still
+need firm confirmation (they reuse the existing immigration defaults).
+
+| # | ID | Topic | Current default | Status | Confirmed value / notes |
+|---|---|---|---|---|---|
+| 62 | DP-001 | One active pack per deployment (v1); per-tenant deferred | One pack per process | **confirmed** | D-1, PM 2026-06-25 |
+| 63 | DP-002 | `ENGINE_PII_BASELINE` fixed/universal (email, phone, SSN/ITIN, DOB); packs add only | Baseline floor non-removable | **confirmed** | D-2, PM 2026-06-25 |
+| 64 | DP-003 | `Document.privileged` / `privilege` check are permanent aliases of `restricted` / `restriction` | Permanent alias, no migration | **confirmed** | D-3 / D-6, PM 2026-06-25 |
+| 65 | DP-004 | Second reference pack = consulting/advisory | `consulting` pack shipped | **confirmed** | D-4, PM 2026-06-25 |
+| 66 | DP-005 | No implicit default pack; `CAM_DOMAIN_PACK` required (unset/unknown → refuse to serve) | Required, fail-closed | **confirmed** | D-5, PM 2026-06-25 |
+| 67 | DP-006 | In-repo packs only for v1; entry-point plugin channel exists but unsupported | In-repo, reviewed code only | **confirmed** | D-7, PM 2026-06-25 |
+| 68 | DP-007 | Manifest: `domain-packs` is a foundations unit depended on by the 5 domain specs | Added to `manifest.yml` | **confirmed** | D-8, PM 2026-06-25 |
+| 69 | DP-008 | Immigration pack case-type / form / deadline contents | Reuse existing immigration defaults (illustrative) | pending | Same contents as I-002, Q-004, DE-001; confirm per firm |
+
+---
+
 ## Other
 
 | # | ID | Topic | Current default | Status | Confirmed value / notes |
 |---|---|---|---|---|---|
-| 62 | O-001 | TriggerSink contract exact shape | Protocol stub in connector-framework | pending | |
-| 63 | O-002 | Extraction default threshold | 0.80 | pending | |
-| 64 | O-003 | Extraction max pages | 500 | pending | |
-| 65 | O-004 | Extraction max bytes | 50 MB | pending | |
+| 70 | O-001 | TriggerSink contract exact shape | Protocol stub in connector-framework | pending | |
+| 71 | O-002 | Extraction default threshold | 0.80 | pending | |
+| 72 | O-003 | Extraction max pages | 500 | pending | |
+| 73 | O-004 | Extraction max bytes | 50 MB | pending | |
 
 ---
 
-*Last updated: 2026-06-01. Source: code grep of `ASSUMPTION (confirm)` across `src/cam/**/*.py` plus open questions from `concept/PRD.md §11` and `concept/PTD.md §18`.*
+*Last updated: 2026-06-26. Source: code grep of `ASSUMPTION (confirm)` across `src/cam/**/*.py` plus open questions from `concept/PRD.md §11` and `concept/PTD.md §18`; domain-pack decisions D-1–D-8 from `specs/domain-packs/spec.md §13` (PM sign-off 2026-06-25).*
