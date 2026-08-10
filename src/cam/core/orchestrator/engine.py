@@ -15,16 +15,16 @@ Key invariants:
 from __future__ import annotations
 
 import asyncio
-import random
 import secrets as _secrets
 import uuid
-from datetime import datetime, timezone
-from typing import Any, Callable, Literal, cast
+from collections.abc import Callable
+from datetime import UTC, datetime
+from typing import Any, Literal, cast
 
 import structlog
 
-from cam.connectors.errors import ConnectorError, FatalError, TransientError
-from cam.core.orchestrator.dsl import GateConfig, StepContext, WorkflowDef, get_workflow_latest
+from cam.connectors.errors import ConnectorError
+from cam.core.orchestrator.dsl import GateConfig, StepContext, get_workflow_latest
 from cam.core.orchestrator.idempotency import IdempotencyStore, InMemoryIdempotencyStore
 from cam.core.orchestrator.states import (
     GateRequest,
@@ -92,7 +92,8 @@ class WorkflowEngine:
         compensations: list[Callable] = []
 
         for step_state in steps:
-            if step_state.status in (StepStatus.SUCCEEDED, StepStatus.SKIPPED, StepStatus.COMPENSATED):
+            if step_state.status in (StepStatus.SUCCEEDED, StepStatus.SKIPPED,
+                StepStatus.COMPENSATED):
                 # Populate outputs for downstream steps even on skip
                 if step_state.output is not None:
                     outputs[step_state.step] = step_state.output
@@ -104,8 +105,7 @@ class WorkflowEngine:
             if defn.is_gate(step_name):
                 await self._handle_gate(run, step_state, defn.gate_config(step_name))
                 result = await self.store.get_run(run_id)
-                if result is None:
-                    raise AssertionError
+                assert result is not None
                 return result
 
             # ── Normal step ────────────────────────────────────────────
@@ -119,8 +119,9 @@ class WorkflowEngine:
                 continue
 
             # Mark step running
-            now = datetime.now(tz=timezone.utc)
-            step_state = step_state.model_copy(update={"status": StepStatus.RUNNING, "started_at": now})
+            now = datetime.now(tz=UTC)
+            step_state = step_state.model_copy(update={"status": StepStatus.RUNNING
+                , "started_at": now})
             await self.store.update_step(step_state)
 
             ctx = StepContext(
@@ -132,8 +133,9 @@ class WorkflowEngine:
 
             try:
                 # Start an OTel span for this step, correlated by run_id
-                from cam.obs.observability import start_workflow_span
                 from opentelemetry.trace import use_span
+
+                from cam.obs.observability import start_workflow_span
                 _span = start_workflow_span(
                     run.workflow, run_id=run_id, step=step_name
                 )
@@ -149,7 +151,7 @@ class WorkflowEngine:
                 outputs[step_name] = output
                 compensations.extend(ctx.compensations)
 
-                now = datetime.now(tz=timezone.utc)
+                now = datetime.now(tz=UTC)
                 step_state = step_state.model_copy(
                     update={
                         "status": StepStatus.SUCCEEDED,
@@ -169,7 +171,7 @@ class WorkflowEngine:
                         "status": StepStatus.FAILED,
                         "error": err,
                         "attempt": step_state.attempt + 1,
-                        "ended_at": datetime.now(tz=timezone.utc),
+                        "ended_at": datetime.now(tz=UTC),
                     }
                 )
                 await self.store.update_step(step_state)
@@ -193,8 +195,7 @@ class WorkflowEngine:
                 else:
                     await self._park(run_id, err, compensations)
                     parked = await self.store.get_run(run_id)
-                    if parked is None:
-                        raise AssertionError
+                    assert parked is not None
                     return parked
 
         # All steps completed
@@ -202,8 +203,7 @@ class WorkflowEngine:
         await self._audit("run.succeeded", run_id, {}, {})
         log.info("engine.run_succeeded", run_id=run_id)
         final = await self.store.get_run(run_id)
-        if final is None:
-            raise AssertionError
+        assert final is not None
         return final
 
     async def _handle_gate(
@@ -212,13 +212,14 @@ class WorkflowEngine:
         step_state: StepState,
         gate_cfg: GateConfig,
     ) -> None:
-        from cam.core.orchestrator.gates import issue_token
         from datetime import timedelta
 
+        from cam.core.orchestrator.gates import issue_token
+
         gate_id = str(uuid.uuid4())
-        now = datetime.now(tz=timezone.utc)
-        _ApprovalChannel = Literal["mcp", "web", "email"]
-        typed_channels = cast(list[_ApprovalChannel], gate_cfg.channels)
+        now = datetime.now(tz=UTC)
+        _approval_channel = Literal["mcp", "web", "email"]
+        typed_channels = cast(list[_approval_channel], gate_cfg.channels)
         gate = GateRequest(
             id=gate_id,
             run_id=run.id,

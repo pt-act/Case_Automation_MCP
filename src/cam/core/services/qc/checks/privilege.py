@@ -8,13 +8,24 @@ A privileged doc in an external-bound packet → fail, no exceptions.
 from __future__ import annotations
 
 from cam.core.services.qc.types import (
+    FAIL_OR_PASS,
     CheckDescriptor,
     CheckResult,
     QCConfig,
-    SeverityPolicy,
     Verdict,
-    FAIL_OR_PASS,
 )
+
+
+def _active_restriction():  # type: ignore[no-untyped-def]
+    """Return the active domain pack's RestrictionPolicy, or None if no pack is
+    active (the check then falls back to the immigration "Privileged" label and
+    the engine-fixed fail-closed mechanics)."""
+    try:
+        from cam.packs.base import get_active_pack
+
+        return get_active_pack().restriction
+    except Exception:
+        return None
 
 
 class PrivilegeCheck:
@@ -47,26 +58,35 @@ class PrivilegeCheck:
         )
         effective_external = caller_claim or has_unknown_recipient
 
-        privileged_docs = [d for d in packet.documents if d.privileged]
-        if not privileged_docs:
+        # The confidentiality label comes from the active domain pack's
+        # RestrictionPolicy ("Privileged" for immigration, "Client-Confidential"
+        # for consulting). Fail-closed default if no pack is active.
+        restriction = _active_restriction()
+        label = restriction.label if restriction is not None else "Privileged"
+
+        # Canonical confidentiality flag (`restricted`; `privileged` is its alias).
+        restricted_docs = [d for d in packet.documents if d.restricted]
+        if not restricted_docs:
             return CheckResult(
                 check_id=self.id, check_version=self.version,
                 verdict=Verdict.PASS,
-                reason="No privileged documents in packet.",
+                reason=f"No {label.lower()} documents in packet.",
             )
 
-        if effective_external:
-            doc_ids = [d.id for d in privileged_docs]
+        # Engine-fixed rule: a restricted doc in an external-bound packet fails.
+        # A pack's extra predicates may only TIGHTEN (add a fail), never relax.
+        extra_block = bool(restriction is not None and restriction.extra_block(packet))
+        if effective_external or extra_block:
             return CheckResult(
                 check_id=self.id, check_version=self.version,
                 verdict=Verdict.FAIL,
                 reason=(
-                    f"Privileged document(s) cannot be routed to external recipients. "
+                    f"{label} document(s) cannot be routed to external recipients. "
                     f"effective_external={effective_external} "
                     f"(caller_claim={caller_claim}, re_derived={has_unknown_recipient})."
                 ),
                 evidence={
-                    "privileged_doc_count": len(privileged_docs),
+                    "restricted_doc_count": len(restricted_docs),
                     "effective_external": effective_external,
                 },
             )
@@ -74,5 +94,5 @@ class PrivilegeCheck:
         return CheckResult(
             check_id=self.id, check_version=self.version,
             verdict=Verdict.PASS,
-            reason="Privileged documents are internal only.",
+            reason=f"{label} documents are internal only.",
         )

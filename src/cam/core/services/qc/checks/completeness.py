@@ -3,13 +3,12 @@
 from __future__ import annotations
 
 from cam.core.services.qc.types import (
+    WARN_OR_FAIL_OR_PASS,
     CheckDescriptor,
     CheckResult,
     QCConfig,
-    SeverityPolicy,
     SkipReason,
     Verdict,
-    WARN_OR_FAIL_OR_PASS,
 )
 
 
@@ -61,7 +60,10 @@ class CompletenessCheck:
             return CheckResult(
                 check_id=self.id, check_version=self.version,
                 verdict=Verdict.FAIL,
-                reason=f"Missing required vars: {missing_vars}; missing matter fields: {missing_fields}",
+                reason=(
+                    f"Missing required vars: {missing_vars}; "
+                    f"missing matter fields: {missing_fields}"
+                ),
                 evidence={"missing_vars": missing_vars, "missing_matter_fields": missing_fields},
             )
 

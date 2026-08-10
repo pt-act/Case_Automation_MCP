@@ -3,22 +3,20 @@
 from __future__ import annotations
 
 import hashlib
-import io
 
 import pytest
+from pydantic import ValidationError
 
 from cam.core.services.extraction.errors import InputLimitError, ResidencyError
 from cam.core.services.extraction.llm import MockLLMClient, ResidencyGuard
 from cam.core.services.extraction.ocr import MockOcrEngine
 from cam.core.services.extraction.pipeline import ExtractionService, tool_document_extract
 from cam.core.services.extraction.types import (
-    ExtractInput,
     ExtractedField,
-    ExtractionSource,
+    ExtractInput,
     FieldMapping,
     MappingProfile,
 )
-
 
 
 def _make_pdf_bytes() -> bytes:
@@ -61,7 +59,8 @@ def _make_service(
         text_extractor=mock_text,
         ocr_engine=mock_ocr,
         llm_client=guard,
-        profiles=profiles or {"test": _profile_with_field(), "default": MappingProfile(name="default", version="1.0")},
+        profiles=profiles or {"test": _profile_with_field(),
+            "default": MappingProfile(name="default", version="1.0")},
     )
 
 
@@ -92,9 +91,9 @@ async def test_no_system_of_record_write() -> None:
 
 # c. Threshold out-of-range rejected at input validation
 async def test_threshold_out_of_range_rejected() -> None:
-    svc = _make_service()
-    with pytest.raises(Exception):
-        inp = ExtractInput(input_ref="doc.pdf", content_kind="pdf", threshold=2.0)
+    _make_service()
+    with pytest.raises(ValidationError):
+        ExtractInput(input_ref="doc.pdf", content_kind="pdf", threshold=2.0)
 
 
 # d. Empty input raises
@@ -159,4 +158,10 @@ def test_prompt_renders() -> None:
     prompt = render_extraction_schema(profile)
     assert "email" in prompt
     assert "contact.email" not in prompt  # source_key, not domain_key
-    assert "[0.0, 1.0]" in prompt or "0_to_1" in prompt or "0 to 1" in prompt or "[0,1]" in prompt or "0.0, 1.0" in prompt
+    assert (
+        "[0.0, 1.0]" in prompt
+        or "0_to_1" in prompt
+        or "0 to 1" in prompt
+        or "[0, 1]" in prompt
+        or "0.0, 1.0" in prompt
+    )

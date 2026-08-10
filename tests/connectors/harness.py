@@ -12,14 +12,14 @@ Invoke via the individual test files or directly::
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
-from cam.core.domain.models import ACL, Communication, Contact, Document, Matter
 from cam.connectors.ports import MatterDraft
+from cam.core.domain.models import ACL, Communication, Contact, Document, Matter
 
-NOW = datetime(2026, 6, 1, 12, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 6, 1, 12, 0, tzinfo=UTC)
 
 
 def _contact(suffix: str = "") -> Contact:

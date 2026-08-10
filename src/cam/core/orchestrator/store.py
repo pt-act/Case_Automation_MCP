@@ -7,8 +7,7 @@ Both share the same async interface so the engine works against either.
 
 from __future__ import annotations
 
-import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from cam.core.orchestrator.states import (
@@ -24,7 +23,7 @@ from cam.core.orchestrator.states import (
 )
 
 
-class IllegalTransition(Exception):
+class IllegalTransitionError(Exception):
     pass
 
 
@@ -67,12 +66,12 @@ class InMemoryRunStore:
         if run is None:
             raise KeyError(f"Run {run_id!r} not found.")
         if not is_legal_run_transition(run.status, status):
-            raise IllegalTransition(
+            raise IllegalTransitionError(
                 f"Run {run_id}: {run.status!r} → {status!r} is not a legal transition."
             )
         updates: dict[str, Any] = {
             "status": status,
-            "updated_at": datetime.now(tz=timezone.utc),
+            "updated_at": datetime.now(tz=UTC),
         }
         if current_step is not None:
             updates["current_step"] = current_step
@@ -86,7 +85,7 @@ class InMemoryRunStore:
         if run is None:
             raise KeyError(f"Run {run_id!r} not found.")
         self._runs[run_id] = run.model_copy(
-            update={"current_step": step, "updated_at": datetime.now(tz=timezone.utc)}
+            update={"current_step": step, "updated_at": datetime.now(tz=UTC)}
         )
 
     async def advance_gate_step(self, run_id: str, step_name: str) -> None:
@@ -102,7 +101,7 @@ class InMemoryRunStore:
                 steps[i] = s.model_copy(
                     update={
                         "status": StepStatus.SUCCEEDED,
-                        "ended_at": datetime.now(tz=timezone.utc),
+                        "ended_at": datetime.now(tz=UTC),
                     }
                 )
                 return
@@ -135,7 +134,7 @@ class InMemoryRunStore:
         for i, s in enumerate(steps):
             if s.step == step.step:
                 if not is_legal_step_transition(s.status, step.status):
-                    raise IllegalTransition(
+                    raise IllegalTransitionError(
                         f"Step {step.step!r}: {s.status!r} → {step.status!r} is illegal."
                     )
                 steps[i] = step

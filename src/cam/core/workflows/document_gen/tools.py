@@ -8,15 +8,15 @@ from __future__ import annotations
 
 import hashlib
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Literal
 
 import structlog
 
-from cam.core.domain.models import Document, Matter
+from cam.core.domain.models import Matter
 from cam.core.workflows.document_gen.context import build_context, detect_gaps
 from cam.core.workflows.document_gen.renderer import RenderError, checksum, render_docx, to_pdf
-from cam.core.workflows.document_gen.template_store import TemplateNotFound, TemplateStore
+from cam.core.workflows.document_gen.template_store import TemplateNotFoundError, TemplateStore
 from cam.core.workflows.document_gen.types import Gap, GenerationResult, TemplateSpec
 from cam.core.workflows.document_gen.version_store import (
     InMemoryVersionLedger,
@@ -44,9 +44,10 @@ async def _run_qc(
 ) -> str:
     """Call qc.verify (completeness + consistency).  Returns pass|warn|fail|skipped."""
     try:
-        from cam.core.services.qc.checks import register_all
         from cam.core.services.qc.packet import (
-            PacketKind, TemplateBinding, VerificationPacket,
+            PacketKind,
+            TemplateBinding,
+            VerificationPacket,
         )
         from cam.core.services.qc.tool import QCVerifyInput, tool_qc_verify
         from cam.core.services.qc.types import Aggregate
@@ -55,7 +56,8 @@ async def _run_qc(
         binding = TemplateBinding(
             template_name=spec.name,
             required_vars=[v.name for v in spec.variables if v.required],
-            resolved_vars={k: (str(v) if v is not None else None) for k, v in resolved_vars.items()},
+            resolved_vars={k: (str(v) if v is not None else None) for k,
+                v in resolved_vars.items()},
         )
         packet = VerificationPacket(
             packet_id=f"qc-docgen-{run_id}",
@@ -63,7 +65,7 @@ async def _run_qc(
             kind=PacketKind.DOCUMENT_GENERATE,
             matter=matter,
             template_bindings=[binding],
-            now=datetime.now(tz=timezone.utc),
+            now=datetime.now(tz=UTC),
         )
         inp = QCVerifyInput(packet=packet, checks=["completeness", "consistency"])
         report = await tool_qc_verify(inp, audit_fn=audit_fn)
@@ -122,7 +124,7 @@ async def tool_document_generate(
     # 1. Load template
     try:
         spec, template_bytes = template_store.get(template_name)
-    except TemplateNotFound:
+    except TemplateNotFoundError:
         log.error("docgen.template_not_found", template=template_name)
         return GenerationResult(
             status="failed",
@@ -157,7 +159,15 @@ async def tool_document_generate(
     try:
         rendered = render_docx(template_bytes, context, gaps)
     except RenderError as exc:
-        await _write_audit(audit_fn, run_id, template_name, spec.version, idem_key, gaps, "skipped", "failed", context)
+        await _write_audit(audit_fn,
+            run_id,
+            template_name,
+            spec.version,
+            idem_key,
+            gaps,
+            "skipped",
+            "failed",
+            context)
         return GenerationResult(
             status="failed", template_name=template_name,
             template_version=spec.version, idempotency_key=idem_key, run_id=run_id,
@@ -193,14 +203,30 @@ async def tool_document_generate(
             docstore=docstore,
         )
     except VersionCollisionError as exc:
-        await _write_audit(audit_fn, run_id, template_name, spec.version, idem_key, gaps, qc_verdict, "failed", context)
+        await _write_audit(audit_fn,
+            run_id,
+            template_name,
+            spec.version,
+            idem_key,
+            gaps,
+            qc_verdict,
+            "failed",
+            context)
         return GenerationResult(
             status="failed", template_name=template_name,
             template_version=spec.version, idempotency_key=idem_key, run_id=run_id,
             warnings=[str(exc)],
         )
     except Exception as exc:
-        await _write_audit(audit_fn, run_id, template_name, spec.version, idem_key, gaps, qc_verdict, "failed", context)
+        await _write_audit(audit_fn,
+            run_id,
+            template_name,
+            spec.version,
+            idem_key,
+            gaps,
+            qc_verdict,
+            "failed",
+            context)
         return GenerationResult(
             status="failed", template_name=template_name,
             template_version=spec.version, idempotency_key=idem_key, run_id=run_id,
@@ -208,7 +234,15 @@ async def tool_document_generate(
         )
 
     status = _determine_status(gaps, qc_verdict)
-    await _write_audit(audit_fn, run_id, template_name, spec.version, idem_key, gaps, qc_verdict, status, context)
+    await _write_audit(audit_fn,
+        run_id,
+        template_name,
+        spec.version,
+        idem_key,
+        gaps,
+        qc_verdict,
+        status,
+        context)
 
     return GenerationResult(
         document=stored_doc,
@@ -242,24 +276,23 @@ async def tool_form_prefill(
 ) -> dict:
     """form.prefill — risk tier read (fields_only) or write/confirm (document).
 
-    Never fabricates values.  Unresolved fields become gaps.
-    ASSUMPTION (confirm): supported form_ids (I-130, I-485, N-400, G-28).
+    Never fabricates values.  Unresolved fields become gaps. The supported
+    form ids and their template mapping are domain-specific and come from the
+    active domain pack's ``prefill_forms`` (each pack maps its own form ids to
+    template ids); the engine hard-codes none.
     """
-    # Map form_id to template name (data-driven; ASSUMPTION confirm)
-    form_to_template: dict[str, str] = {
-        "I-130": "i130_petition",
-        "I-485": "i485_adjustment",
-        "N-400": "n400_naturalization",
-        "G-28": "g28_representation",
-    }
+    from cam.packs.base import get_active_pack
+
+    # Map form_id to template name from the active pack (data-driven).
+    form_to_template = dict(get_active_pack().prefill_forms)
     template_name = form_to_template.get(form_id)
     if template_name is None:
-        raise TemplateNotFound(form_id)
+        raise TemplateNotFoundError(form_id) from None
 
     try:
         spec, _ = template_store.get(template_name)
-    except TemplateNotFound:
-        raise TemplateNotFound(form_id)
+    except TemplateNotFoundError:
+        raise TemplateNotFoundError(form_id) from None
 
     context = build_context(spec, matter, data_context)
     gaps = detect_gaps(spec, context)

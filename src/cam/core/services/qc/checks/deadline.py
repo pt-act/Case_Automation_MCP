@@ -8,12 +8,12 @@ from __future__ import annotations
 from datetime import timedelta
 
 from cam.core.services.qc.types import (
+    WARN_OR_FAIL_OR_PASS,
     CheckDescriptor,
     CheckResult,
     QCConfig,
     SkipReason,
     Verdict,
-    WARN_OR_FAIL_OR_PASS,
 )
 
 

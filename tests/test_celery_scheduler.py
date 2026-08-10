@@ -14,8 +14,7 @@ Coverage:
 
 from __future__ import annotations
 
-import os
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -49,7 +48,7 @@ def celery_eager(monkeypatch: pytest.MonkeyPatch):
 # Helper
 # ---------------------------------------------------------------------------
 
-NOW = datetime.now(tz=timezone.utc)
+NOW = datetime.now(tz=UTC)
 
 
 # ---------------------------------------------------------------------------
@@ -62,9 +61,9 @@ async def test_heartbeat_returns_recent_datetime():
     from cam.sidecar.scheduler_celery import CeleryScheduler  # noqa: PLC0415
 
     sched = CeleryScheduler()
-    before = datetime.now(tz=timezone.utc)
+    before = datetime.now(tz=UTC)
     beat = await sched.heartbeat()
-    after = datetime.now(tz=timezone.utc)
+    after = datetime.now(tz=UTC)
 
     assert isinstance(beat, datetime)
     assert beat.tzinfo is not None, "heartbeat must be timezone-aware"
@@ -81,7 +80,7 @@ async def test_arm_returns_non_empty_arm_id():
     from cam.sidecar.scheduler_celery import CeleryScheduler  # noqa: PLC0415
 
     sched = CeleryScheduler()
-    fire_at = datetime.now(tz=timezone.utc) + timedelta(hours=1)
+    fire_at = datetime.now(tz=UTC) + timedelta(hours=1)
     arm_id = await sched.arm(
         fire_at=fire_at,
         job_ref="deadline_reminder:test-deadline-001",

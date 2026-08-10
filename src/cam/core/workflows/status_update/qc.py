@@ -6,15 +6,13 @@ fail → run parked blocked; warn → annotated; pass → proceed.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import structlog
 
 from cam.core.domain.models import Contact, Matter
-from cam.core.services.qc.checks import register_all
 from cam.core.services.qc.packet import PacketKind, VerificationPacket
-from cam.core.services.qc.registry import clear_registry, run_checks
 from cam.core.services.qc.tool import QCVerifyInput, tool_qc_verify
 from cam.core.services.qc.types import Aggregate, QCConfig
 
@@ -38,7 +36,7 @@ async def run_recipient_integrity_qc(
         kind=PacketKind.EMAIL_SEND,
         matter=matter,
         intended_recipients=recipients,
-        now=datetime.now(tz=timezone.utc),
+        now=datetime.now(tz=UTC),
         config_snapshot=QCConfig(),
         external_bound=True,  # status update is client-facing
     )

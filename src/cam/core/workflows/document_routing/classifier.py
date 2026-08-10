@@ -5,7 +5,6 @@ from __future__ import annotations
 from cam.core.domain.models import Document
 from cam.core.workflows.document_routing.config import (
     DOCUMENT_CLASSES,
-    ClassificationRule,
     RoutingConfig,
     get_routing_config,
 )

@@ -6,7 +6,6 @@ import pytest
 
 from cam.connectors.errors import (
     AuthError,
-    ConnectorError,
     FatalError,
     NotFoundError,
     RateLimitError,

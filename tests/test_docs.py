@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-import pytest
 from pathlib import Path
+
+import pytest
 from pydantic import BaseModel
 
 from cam.docs.generator import generate_model_doc, generate_module_docs

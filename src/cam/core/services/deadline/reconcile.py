@@ -6,7 +6,7 @@ ConnectorError → park reconciliation + alert (absence of data ≠ no drift).
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import structlog
@@ -38,7 +38,7 @@ class Reconciler:
         Returns Drift findings.  On ConnectorError → parks + alerts, never treats
         absence of case data as "no drift".
         """
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
         engine_deadlines = {
             sd.deadline_id: sd for sd in self._store.list_for_matter(matter_id)
         }
@@ -63,7 +63,7 @@ class Reconciler:
                 return []  # Return empty (parked); do NOT treat as no-drift
 
         findings: list[Drift] = []
-        case_ids = {str(d.id): d for d in case_deadlines}
+        {str(d.id): d for d in case_deadlines}
 
         # Missing in case system
         for did, sd in engine_deadlines.items():
@@ -84,7 +84,10 @@ class Reconciler:
                     matter_id=matter_id,
                     deadline_id=did,
                     kind="divergent_due_at",
-                    detail=f"Engine due_at={sd.trace.due_at.isoformat()}, case due_at={match.due_at.isoformat()}",
+                    detail=(
+                        f"Engine due_at={sd.trace.due_at.isoformat()}, "
+                        f"case due_at={match.due_at.isoformat()}"
+                    ),
                     detected_at=now,
                 ))
 
@@ -103,7 +106,8 @@ class Reconciler:
         if findings:
             log.warning("reconcile.drift_found", matter_id=matter_id, count=len(findings))
             for f in findings:
-                await self._maybe_alert("reconciliation_drift", {"kind": f.kind, "matter_id": matter_id})
+                await self._maybe_alert("reconciliation_drift",
+                    {"kind": f.kind, "matter_id": matter_id})
 
         await self._maybe_audit("reconcile.complete", matter_id, {"drift_count": len(findings)})
         return findings

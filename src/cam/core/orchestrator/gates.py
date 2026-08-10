@@ -17,7 +17,7 @@ import hashlib
 import hmac
 import json
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 
 from cam.core.orchestrator.states import (
@@ -60,7 +60,7 @@ def issue_token(
     approver via the channel.
     """
     token_id = str(uuid.uuid4())
-    expires_at = datetime.now(tz=timezone.utc) + timedelta(seconds=ttl_seconds)
+    expires_at = datetime.now(tz=UTC) + timedelta(seconds=ttl_seconds)
 
     payload = {
         "tid": token_id,
@@ -122,7 +122,8 @@ class RunStore:
     async def get_gate_request(self, gate_id: str) -> GateRequest | None: ...
     async def update_gate_request(self, gate: GateRequest) -> None: ...
     async def get_token(self, token_id: str) -> ApprovalToken | None: ...
-    async def mark_token_used(self, token_id: str, used_at: datetime) -> bool: ...  # True = first use
+    async def mark_token_used(self, token_id: str,
+        used_at: datetime) -> bool: ...  # True = first use
     async def save_approval_decision(self, decision: ApprovalDecision) -> None: ...
 
 
@@ -167,7 +168,7 @@ async def resolve_gate(
     exp_ts: float = payload["exp"]
 
     # 2. Check expiry
-    if datetime.now(tz=timezone.utc).timestamp() > exp_ts:
+    if datetime.now(tz=UTC).timestamp() > exp_ts:
         await _maybe_audit(audit_fn, actor, "gate.token_expired", {"token_id": token_id})
         raise GateResolutionError("Token has expired.", 401)
 
@@ -177,7 +178,7 @@ async def resolve_gate(
         raise GateResolutionError("Token not found.", 404)
 
     # 4. Single-use (atomic mark_used)
-    first_use = await store.mark_token_used(token_id, datetime.now(tz=timezone.utc))
+    first_use = await store.mark_token_used(token_id, datetime.now(tz=UTC))
     if not first_use:
         await _maybe_audit(audit_fn, actor, "gate.token_reused", {"token_id": token_id})
         raise GateResolutionError("Token has already been used.", 409)
@@ -198,16 +199,22 @@ async def resolve_gate(
         actor_role = None  # unknown role → deny
 
     if actor_role is None or actor_role != Role(gate.required_role):
-        await _maybe_audit(audit_fn, actor, "gate.authz_denied", {"required_role": gate.required_role})
+        await _maybe_audit(audit_fn,
+            actor,
+            "gate.authz_denied",
+            {"required_role": gate.required_role})
         raise GateResolutionError("Insufficient role to approve this gate.", 403)
 
     principal = Principal(identity=actor, roles=frozenset([actor_role]))
     if not authorize(principal, Permission.GATE_APPROVE):
-        await _maybe_audit(audit_fn, actor, "gate.authz_denied", {"required_role": gate.required_role})
+        await _maybe_audit(audit_fn,
+            actor,
+            "gate.authz_denied",
+            {"required_role": gate.required_role})
         raise GateResolutionError("Insufficient role to approve this gate.", 403)
 
     # 7. Record decision
-    decided_at = datetime.now(tz=timezone.utc)
+    decided_at = datetime.now(tz=UTC)
     approval_decision = ApprovalDecision(
         gate_request_id=gate_request_id,
         run_id=run_id,

@@ -21,8 +21,7 @@ Usage (Celery beat — periodic tasks)::
 from __future__ import annotations
 
 import asyncio
-import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import structlog
@@ -97,8 +96,8 @@ def _make_in_memory_deps() -> tuple[Any, Any, Any]:
     tasks runnable in integration tests and ``CELERY_TASK_ALWAYS_EAGER`` mode
     without requiring a database connection.
     """
-    from cam.core.services.deadline.schedule import DeadlineStore
     from cam.core.services.deadline.firing import MockNotificationPort
+    from cam.core.services.deadline.schedule import DeadlineStore
 
     store = DeadlineStore()
     notif = MockNotificationPort()
@@ -158,7 +157,7 @@ def task_fire_reminder(self: Any, deadline_id: str, reminder_idem_key: str) -> d
             deadline_id=deadline_id,
             error=str(exc),
         )
-        raise self.retry(exc=exc)
+        raise self.retry(exc=exc) from exc
 
 
 async def _fire_reminder_async(
@@ -234,7 +233,7 @@ def task_escalate(self: Any, deadline_id: str) -> dict:
             deadline_id=deadline_id,
             error=str(exc),
         )
-        raise self.retry(exc=exc)
+        raise self.retry(exc=exc) from exc
 
 
 async def _escalate_async(
@@ -303,7 +302,7 @@ def task_sweep_reconcile(self: Any, matter_ids: list[str]) -> dict:
             matter_count=len(matter_ids),
             error=str(exc),
         )
-        raise self.retry(exc=exc)
+        raise self.retry(exc=exc) from exc
 
 
 async def _sweep_reconcile_async(*, matter_ids: list[str], store: Any) -> int:
@@ -365,7 +364,7 @@ async def _deadman_check_async() -> dict:
     monitor = DeadmanMonitor(scheduler=scheduler)
 
     last_beat = await scheduler.heartbeat()
-    now = datetime.now(tz=timezone.utc)
+    now = datetime.now(tz=UTC)
     age_seconds = (now - last_beat).total_seconds()
     healthy = await monitor.check_once()
 

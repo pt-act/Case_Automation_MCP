@@ -8,12 +8,12 @@ All three trigger paths (webhook event, schedule, agent) converge on
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import structlog
 
-from cam.core.orchestrator.dsl import GateConfig, get_workflow_latest
+from cam.core.orchestrator.dsl import get_workflow_latest
 from cam.core.orchestrator.states import (
     RunStatus,
     StepState,
@@ -51,7 +51,7 @@ async def start_run(
     if dedupe_key:
         trigger = trigger.model_copy(update={"dedupe_key": dedupe_key})
 
-    now = datetime.now(tz=timezone.utc)
+    now = datetime.now(tz=UTC)
     run_id = str(uuid.uuid4())
 
     run = WorkflowRun(

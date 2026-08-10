@@ -2,15 +2,13 @@
 
 from __future__ import annotations
 
-import asyncio
-import time
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from cam.core.services.deadline.calendar import Calendar, CalendarError, get_calendar
+from cam.core.services.deadline.calendar import CalendarError, get_calendar
 from cam.core.services.deadline.compute import (
     MissingTriggerError,
     compute_due_date,
@@ -35,8 +33,7 @@ from cam.core.services.deadline.schedule import (
 )
 from cam.core.services.deadline.types import DeadlineRule, Offset, ReminderOffset, RuleRef
 
-
-NOW = datetime(2026, 6, 1, 12, 0, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 6, 1, 12, 0, 0, tzinfo=UTC)
 CAL = get_calendar("us_federal")
 
 
@@ -133,7 +130,7 @@ def test_weekend_is_not_business_day() -> None:
 
 
 def test_holiday_is_not_business_day() -> None:
-    independence_day = date(2026, 7, 4)  # Saturday → observed Friday July 3
+    date(2026, 7, 4)  # Saturday → observed Friday July 3
     observed = date(2026, 7, 3)
     assert not CAL.is_business_day(observed)
 
@@ -178,7 +175,7 @@ def _rfe_rule() -> DeadlineRule:
 
 def test_compute_trace_reconstructable() -> None:
     rule = _rfe_rule()
-    trigger_date = datetime(2026, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+    trigger_date = datetime(2026, 1, 1, 0, 0, 0, tzinfo=UTC)
     ref = RuleRef(rule_id=rule.rule_id, rule_version="abc123", jurisdiction="US")
     trace = compute_due_date(rule, {"trigger_date": trigger_date}, rule_ref=ref)
     # Verify reconstruction: raw_due = trigger + 87 days
@@ -195,7 +192,7 @@ def test_compute_missing_trigger_raises() -> None:
 
 def test_compute_past_due_flag() -> None:
     rule = _rfe_rule()
-    old_trigger = datetime(2020, 1, 1, tzinfo=timezone.utc)
+    old_trigger = datetime(2020, 1, 1, tzinfo=UTC)
     ref = RuleRef(rule_id=rule.rule_id, rule_version="v1", jurisdiction="US")
     trace = compute_due_date(rule, {"trigger_date": old_trigger}, rule_ref=ref)
     assert trace.due_at < NOW  # past due
@@ -203,7 +200,7 @@ def test_compute_past_due_flag() -> None:
 
 def test_preview_reminders_all_before_due() -> None:
     rule = _rfe_rule()
-    trigger = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    trigger = datetime(2026, 1, 1, tzinfo=UTC)
     ref = RuleRef(rule_id=rule.rule_id, rule_version="v1", jurisdiction="US")
     trace = compute_due_date(rule, {"trigger_date": trigger}, rule_ref=ref)
     previews = preview_reminders(rule, trace.due_at)
@@ -215,7 +212,7 @@ async def test_compute_tool_no_deadline_persisted() -> None:
     rule = _rfe_rule()
     store = DeadlineStore()
     ref = RuleRef(rule_id=rule.rule_id, rule_version="v1", jurisdiction="US")
-    trigger = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    trigger = datetime(2026, 1, 1, tzinfo=UTC)
     result = await tool_deadline_compute(rule, {"trigger_date": trigger}, rule_ref=ref)
     # No deadline persisted
     assert len(store._deadlines) == 0
@@ -337,14 +334,14 @@ async def test_reminder_fires_exactly_once() -> None:
 
     rem = armed[0]
     # First fire — should deliver
-    result1 = await fire_reminder(
+    await fire_reminder(
         deadline_id=sd.deadline_id,
         reminder_idem_key=rem.idempotency_key,
         store=_,
         notification_port=notif,
     )
     # Reload the store reference
-    result1 = await fire_reminder(
+    await fire_reminder(
         deadline_id=sd.deadline_id,
         reminder_idem_key=rem.idempotency_key,
         store=_,
@@ -385,8 +382,8 @@ async def test_stopped_scheduler_triggers_alert() -> None:
     scheduler = InMemoryScheduler()
     scheduler.stop()
     # Force old heartbeat
-    from datetime import datetime, timezone
-    scheduler._last_heartbeat = datetime.now(tz=timezone.utc) - timedelta(seconds=600)
+    from datetime import datetime
+    scheduler._last_heartbeat = datetime.now(tz=UTC) - timedelta(seconds=600)
     alerts: list[dict] = []
     async def alert_fn(**kwargs): alerts.append(kwargs)
     monitor = DeadmanMonitor(scheduler, threshold_seconds=300, alert_fn=alert_fn)
@@ -431,7 +428,7 @@ async def test_reconcile_connector_error_parks_not_no_drift() -> None:
     alerts: list[dict] = []
     async def alert_fn(**kwargs): alerts.append(kwargs)
     reconciler = Reconciler(store=store, case_connector=FailingCase(), alert_fn=alert_fn)
-    findings = await reconciler.reconcile("m1")
+    await reconciler.reconcile("m1")
     # Returns empty (parked) but fires an alert — does NOT treat as no-drift
     assert alerts  # alert was fired
     # findings is empty because we parked, but that's different from "no drift found"
@@ -508,7 +505,7 @@ def test_pbt_add_business_days_correct_count(n: int) -> None:
 @settings(max_examples=100)
 def test_pbt_compute_deterministic(days: int) -> None:
     rule = _rfe_rule()
-    trigger = datetime(2025, 1, 1, tzinfo=timezone.utc)
+    trigger = datetime(2025, 1, 1, tzinfo=UTC)
     ref = RuleRef(rule_id=rule.rule_id, rule_version="v1", jurisdiction="US")
     t1 = compute_due_date(rule, {"trigger_date": trigger}, rule_ref=ref)
     t2 = compute_due_date(rule, {"trigger_date": trigger}, rule_ref=ref)
@@ -529,7 +526,7 @@ def test_pbt_reminders_all_before_due(days: int) -> None:
             ReminderOffset(amount=-30, unit="days"),
         ],
     )
-    trigger = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    trigger = datetime(2026, 1, 1, tzinfo=UTC)
     ref = RuleRef(rule_id="test", rule_version="v1", jurisdiction="US")
     trace = compute_due_date(rule, {"trigger_date": trigger}, rule_ref=ref)
     for p in preview_reminders(rule, trace.due_at):

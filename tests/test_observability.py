@@ -2,10 +2,7 @@
 
 from __future__ import annotations
 
-import logging
-
 import pytest
-import structlog
 
 from cam.obs.observability import bind_run_id, configure_observability, get_run_id, pii_scrub
 

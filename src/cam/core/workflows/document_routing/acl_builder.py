@@ -8,6 +8,7 @@ Empty allowed set → empty ACL (no default-open).
 from __future__ import annotations
 
 import json
+
 import structlog
 
 from cam.core.domain.models import ACL, Matter

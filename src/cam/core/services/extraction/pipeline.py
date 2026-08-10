@@ -31,18 +31,15 @@ from cam.core.services.extraction.errors import (
     UnsupportedInputError,
 )
 from cam.core.services.extraction.llm import (
-    LLMStructuringClient,
-    ResidencyGuard,
     normalise_fields,
 )
 from cam.core.services.extraction.mapper import FieldMapper, apply_threshold
 from cam.core.services.extraction.ocr import OcrEngine, TesseractOcrEngine
 from cam.core.services.extraction.text import PdfTextExtractor, TextExtractor
 from cam.core.services.extraction.types import (
+    ExtractedField,
     ExtractInput,
     ExtractionProposal,
-    ExtractionSource,
-    ExtractedField,
     MappingProfile,
 )
 

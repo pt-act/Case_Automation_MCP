@@ -7,7 +7,12 @@ from cam.core.services.qc.packet import (
     TemplateBinding,
     VerificationPacket,
 )
-from cam.core.services.qc.registry import applicable_checks, clear_registry, register_check, run_checks
+from cam.core.services.qc.registry import (
+    applicable_checks,
+    clear_registry,
+    register_check,
+    run_checks,
+)
 from cam.core.services.qc.tool import QCVerifyInput, tool_qc_verify
 from cam.core.services.qc.types import (
     Aggregate,

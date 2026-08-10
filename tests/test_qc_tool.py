@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -13,8 +13,7 @@ from cam.core.services.qc.registry import clear_registry
 from cam.core.services.qc.tool import QCVerifyInput, tool_qc_verify
 from cam.core.services.qc.types import Aggregate, QCConfig
 
-
-NOW = datetime(2026, 6, 1, 12, 0, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 6, 1, 12, 0, 0, tzinfo=UTC)
 
 
 @pytest.fixture(autouse=True)

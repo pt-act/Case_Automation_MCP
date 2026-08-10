@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from cam.core.domain.models import Contact, Matter
@@ -61,7 +61,7 @@ async def create_matter(
         practice_area=case_cfg.case_type,
         client=contact,
         responsible=None,
-        opened_at=datetime.now(tz=timezone.utc),
+        opened_at=datetime.now(tz=UTC),
         external_ids={"run_id": run_id, "source_channel": fields.lead_source or "intake"},
     )
     matter = await case_connector.create_matter(draft)

@@ -11,7 +11,9 @@ from __future__ import annotations
 
 import threading
 import time
-from typing import Callable, Protocol, runtime_checkable
+from collections.abc import Callable
+from datetime import UTC
+from typing import Protocol, runtime_checkable
 
 import structlog
 
@@ -21,15 +23,15 @@ from cam.core.services.qc.types import (
     CheckResult,
     QCConfig,
     QCReport,
-    SkipReason,
     SeverityPolicy,
+    SkipReason,
     Verdict,
     compute_config_fingerprint,
 )
 
 log = structlog.get_logger(__name__)
 
-_REGISTRY: dict[str, "Check"] = {}
+_REGISTRY: dict[str, Check] = {}
 
 
 # ---------------------------------------------------------------------------
@@ -58,7 +60,7 @@ class Check(Protocol):
 
     def describe(self) -> CheckDescriptor: ...
 
-    def run(self, packet: "VerificationPacket", cfg: QCConfig) -> CheckResult: ...  # noqa: F821
+    def run(self, packet: VerificationPacket, cfg: QCConfig) -> CheckResult: ...  # noqa: F821
 
 
 # ---------------------------------------------------------------------------
@@ -130,7 +132,7 @@ def _run_with_timeout(
 
 
 def run_checks(
-    packet: "VerificationPacket",  # noqa: F821
+    packet: VerificationPacket,  # noqa: F821
     requested_ids: list[str] | None,
     cfg: QCConfig,
 ) -> QCReport:
@@ -144,7 +146,7 @@ def run_checks(
     Returns:
         A QCReport with per-check results and an aggregate verdict.
     """
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     all_applicable = applicable_checks(packet.kind)
     applicable_map = {c.id: c for c in all_applicable}
@@ -175,11 +177,13 @@ def run_checks(
             if exc is not None:
                 raise exc
             result = raw_result
-            if result is None:
-                raise AssertionError
+            assert result is not None
 
             # Severity-policy enforcement
-            if result.verdict != Verdict.SKIPPED and not check.severity_policy.allows(result.verdict):
+            if (
+                result.verdict != Verdict.SKIPPED
+                and not check.severity_policy.allows(result.verdict)
+            ):
                 log.warning(
                     "qc.severity_policy_violation",
                     check_id=check.id,
@@ -190,7 +194,10 @@ def run_checks(
                     check_id=check.id,
                     check_version=check.version,
                     verdict=Verdict.FAIL,
-                    reason=f"Check emitted {result.verdict!r} outside its declared severity policy.",
+                    reason=(
+                        f"Check emitted {result.verdict!r} outside its "
+                        f"declared severity policy."
+                    ),
                     duration_ms=(time.monotonic() - t0) * 1000,
                 )
 
@@ -231,7 +238,7 @@ def run_checks(
         aggregate=aggregate,
         checks_selected=checks_selected,
         checks_skipped=skipped,
-        created_at=datetime.now(tz=timezone.utc),
+        created_at=datetime.now(tz=UTC),
         config_fingerprint=config_fingerprint,
     )
 

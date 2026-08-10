@@ -7,14 +7,10 @@ for audit + resume, not as new system-of-record entities.
 
 from __future__ import annotations
 
-import re
 from datetime import datetime
 from typing import Any, Literal
 
 from pydantic import BaseModel, EmailStr, Field, field_validator
-
-_A_NUMBER_RE = re.compile(r"^A\d{8,9}$")
-
 
 # ---------------------------------------------------------------------------
 # Lead payload (raw inbound lead)
@@ -62,9 +58,23 @@ class IntakeFields(BaseModel):
     @field_validator("a_number")
     @classmethod
     def _validate_a_number(cls, v: str | None) -> str | None:
-        if v is not None and not _A_NUMBER_RE.match(v):
+        """Validate the identifier against the active pack's format, if any.
+
+        The format pattern is domain-specific, so it lives in the active domain
+        pack's ``identifier_patterns["a_number"]`` rather than in core. When no
+        pack is active or the pack declares no such identifier (e.g. a non-
+        immigration practice), the value is accepted as-is."""
+        if v is None:
+            return v
+        try:
+            from cam.packs.base import get_active_pack
+
+            pattern = get_active_pack().identifier_patterns.get("a_number")
+        except Exception:  # noqa: BLE001 - no active pack → skip domain validation
+            pattern = None
+        if pattern is not None and not pattern.match(v):
             raise ValueError(
-                f"A-number must be 'A' followed by 8 or 9 digits; got {v!r}."
+                f"identifier does not match the active pack's a_number format; got {v!r}."
             )
         return v
 

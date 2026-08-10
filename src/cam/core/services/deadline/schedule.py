@@ -8,16 +8,15 @@ Each reminder is armed via TWO independent scheduler paths sharing one idem key.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any, Protocol, runtime_checkable
 
 import structlog
 
 from cam.core.services.deadline.calendar import get_calendar
-from cam.core.services.deadline.compute import compute_due_date, preview_reminders
+from cam.core.services.deadline.compute import compute_due_date
 from cam.core.services.deadline.types import (
     DeadlineRule,
-    ReminderOffset,
     RuleRef,
     ScheduledDeadline,
     ScheduledReminder,
@@ -51,7 +50,7 @@ class InMemoryScheduler:
 
     def __init__(self) -> None:
         self._arms: dict[str, dict] = {}
-        self._last_heartbeat: datetime = datetime.now(tz=timezone.utc)
+        self._last_heartbeat: datetime = datetime.now(tz=UTC)
         self.stopped: bool = False
 
     async def arm(self, fire_at: datetime, job_ref: str, idem_key: str) -> str:
@@ -64,7 +63,7 @@ class InMemoryScheduler:
 
     async def heartbeat(self) -> datetime:
         if not self.stopped:
-            self._last_heartbeat = datetime.now(tz=timezone.utc)
+            self._last_heartbeat = datetime.now(tz=UTC)
         return self._last_heartbeat
 
     def stop(self) -> None:
@@ -102,7 +101,7 @@ class DeadlineStore:
     def upcoming_reminders(
         self, window_days: int = 90, matter_id: str | None = None
     ) -> list[ScheduledReminder]:
-        cutoff = datetime.now(tz=timezone.utc) + timedelta(days=window_days)
+        cutoff = datetime.now(tz=UTC) + timedelta(days=window_days)
         out: list[ScheduledReminder] = []
         for sd in self._deadlines.values():
             if matter_id and sd.matter_id != matter_id:
@@ -124,7 +123,10 @@ class PastDueOnCreateError(Exception):
     def __init__(self, due_at: datetime, now: datetime) -> None:
         self.due_at = due_at
         self.now = now
-        super().__init__(f"Deadline due_at={due_at.isoformat()} is in the past (now={now.isoformat()}).")
+        super().__init__(
+            f"Deadline due_at={due_at.isoformat()} is in the past "
+            f"(now={now.isoformat()})."
+        )
 
 
 async def tool_deadline_schedule(
@@ -145,7 +147,7 @@ async def tool_deadline_schedule(
     Returns the ScheduledDeadline (existing if already scheduled, new if not).
     Raises PastDueOnCreateError if due_at < now (caller must surface to human).
     """
-    now = now or datetime.now(tz=timezone.utc)
+    now = now or datetime.now(tz=UTC)
 
     # Idempotency check
     existing = store.get_by_idem(idempotency_key)

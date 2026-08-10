@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 
-from cam.connectors.errors import ConnectorError, NotFoundError
+from cam.connectors.errors import ConnectorError
 from cam.core.domain.models import Contact
 
 

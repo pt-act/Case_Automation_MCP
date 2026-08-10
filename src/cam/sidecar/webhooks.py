@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Request, Response
 
-from cam.connectors.registry import ConnectorNotFound, get_normaliser, registered_connectors
+from cam.connectors.registry import get_normaliser, registered_connectors
 from cam.connectors.webhook.pipeline import process_webhook
 
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
@@ -42,7 +42,7 @@ async def ingest_webhook(connector_name: str, request: Request) -> Response:
     app_state = request.app.state
     secret: str = getattr(app_state, "webhook_secrets", {}).get(connector_name, "")
     redis_client = getattr(app_state, "redis_client", None)
-    trigger_sink = getattr(app_state, "trigger_sink", _noop_trigger_sink)
+    trigger_sink = getattr(app_state, "trigger_sink", _NoopTriggerSink)
 
     if redis_client is None:
         raise HTTPException(status_code=503, detail="Dedup store unavailable.")
@@ -65,7 +65,6 @@ async def ingest_webhook(connector_name: str, request: Request) -> Response:
         "rejected_oversized": 413,
         "redis_unavailable": 503,
         "enqueue_failed": 503,
-        "rejected_bad_signature": 400,  # malformed body also maps here
     }
     status_code = decision_to_status.get(result.decision, 202)
     return Response(
@@ -79,6 +78,6 @@ def _noop_normaliser(connector: str, raw: dict) -> None:
     return None
 
 
-class _noop_trigger_sink:
+class _NoopTriggerSink:
     async def enqueue(self, event: object) -> str:
         return "noop"

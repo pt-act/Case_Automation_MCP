@@ -2,11 +2,9 @@
 
 from __future__ import annotations
 
-import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from cam.core.audit.service import AuditService, _GENESIS_HASH
-
+from cam.core.audit.service import _GENESIS_HASH, AuditService
 
 
 # 1. Genesis record is valid (prev_hash = zeros, chain of 1 verifies)
@@ -35,8 +33,9 @@ async def test_chain_of_three_verifies(db_session: AsyncSession) -> None:
 
 # 3. Audit write failure rolls back the action (tested via verify after tamper)
 async def test_verify_detects_tamper(db_session: AsyncSession) -> None:
-    from cam.persistence.models import AuditLogORM
     from sqlalchemy import update
+
+    from cam.persistence.models import AuditLogORM
 
     svc = AuditService(db_session)
     for _ in range(3):
@@ -56,7 +55,6 @@ async def test_verify_detects_tamper(db_session: AsyncSession) -> None:
 
 # 4. Timestamp is UTC
 async def test_audit_timestamp_utc(db_session: AsyncSession) -> None:
-    from datetime import timezone
 
     svc = AuditService(db_session)
     record = await svc.record(actor="x", action="check", inputs={}, outputs={})

@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import pytest
-
-from cam.security.identity import AGENT_GRANTS, AGENT_SERVICE_PRINCIPAL, agent_can
+from cam.security.identity import AGENT_GRANTS, agent_can
 from cam.security.rbac import Permission, Principal, Role, authorize
 
 

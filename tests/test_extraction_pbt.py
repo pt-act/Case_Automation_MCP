@@ -16,7 +16,7 @@ from hypothesis import strategies as st
 from cam.core.services.extraction.coverage import build_coverage
 from cam.core.services.extraction.llm import normalise_confidence
 from cam.core.services.extraction.mapper import apply_threshold
-from cam.core.services.extraction.types import ExtractedField, PageCoverage
+from cam.core.services.extraction.types import ExtractedField
 
 
 # P1. Confidence always in [0,1] after normalise_confidence
@@ -51,9 +51,9 @@ def test_p3_no_connector_write() -> None:
         async def get(self, *a, **kw): calls.append("get")
         async def move(self, *a, **kw): calls.append("move")
 
+    from cam.core.services.extraction.ocr import MockOcrEngine
     from cam.core.services.extraction.pipeline import ExtractionService
     from cam.core.services.extraction.types import ExtractInput
-    from cam.core.services.extraction.ocr import MockOcrEngine
 
     svc = ExtractionService(ocr_engine=MockOcrEngine())
     inp = ExtractInput(input_ref="test", content_kind="email_body", structuring=False)
@@ -65,9 +65,9 @@ def test_p3_no_connector_write() -> None:
 @given(text=st.text(min_size=1, max_size=200))
 @settings(max_examples=100)
 def test_p4_non_llm_deterministic(text: str) -> None:
+    from cam.core.services.extraction.ocr import MockOcrEngine
     from cam.core.services.extraction.pipeline import ExtractionService
     from cam.core.services.extraction.types import ExtractInput
-    from cam.core.services.extraction.ocr import MockOcrEngine
 
     svc = ExtractionService(ocr_engine=MockOcrEngine())
     inp = ExtractInput(input_ref="test", content_kind="email_body", structuring=False)
@@ -100,7 +100,7 @@ def test_p5_coverage_invariants(total: int, data: st.DataObject) -> None:
         if remaining else st.just([])
     )
     # All ocr_attempted return results
-    ocr_results = {p: ("text", 0.8) for p in ocr_attempted}
+    ocr_results = dict.fromkeys(ocr_attempted, ("text", 0.8))
 
     cov, warns = build_coverage(total, text_pages, ocr_results, ocr_attempted)
     assert cov.is_complete(), f"Coverage incomplete: {cov}"

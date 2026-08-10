@@ -96,7 +96,9 @@ def register_intake_workflow(services: IntakeServices) -> None:
             proposal = None
             if svc.extraction and lead.raw.get("body"):
                 from cam.core.services.extraction.types import ExtractInput
-                inp = ExtractInput(input_ref=ctx.run_id, content_kind="email_body", structuring=False)
+                inp = ExtractInput(input_ref=ctx.run_id,
+                    content_kind="email_body",
+                    structuring=False)
                 try:
                     proposal = svc.extraction.extract(inp, lead.raw["body"].encode())
                 except Exception:
@@ -107,16 +109,16 @@ def register_intake_workflow(services: IntakeServices) -> None:
             return {"fields": fields.model_dump(), "gaps": [g.model_dump() for g in gaps]}
 
         async def dedupe_contact(self, ctx: StepContext) -> dict:
-            from cam.core.workflows.intake.types import IntakeFields
             from cam.core.workflows.intake.dedupe import dedupe_contact
+            from cam.core.workflows.intake.types import IntakeFields
             prior = ctx.output("parse_lead") or {}
             fields = IntakeFields(**prior.get("fields", {}))
             dedupe_result, gaps = await dedupe_contact(fields, svc.crm)
             return {"dedupe": dedupe_result.model_dump(), "gaps": [g.model_dump() for g in gaps]}
 
         async def create_contact(self, ctx: StepContext) -> dict:
-            from cam.core.workflows.intake.types import IntakeFields, DedupeResult
             from cam.core.workflows.intake.create import create_contact
+            from cam.core.workflows.intake.types import DedupeResult, IntakeFields
             parse_out = ctx.output("parse_lead") or {}
             dedupe_out = ctx.output("dedupe_contact") or {}
             fields = IntakeFields(**parse_out.get("fields", {}))
@@ -126,8 +128,8 @@ def register_intake_workflow(services: IntakeServices) -> None:
 
         async def create_matter(self, ctx: StepContext) -> dict:
             from cam.core.domain.models import Contact
-            from cam.core.workflows.intake.types import IntakeFields
             from cam.core.workflows.intake.create import create_matter
+            from cam.core.workflows.intake.types import IntakeFields
             cfg = svc.config or get_intake_config()
             parse_out = ctx.output("parse_lead") or {}
             contact_out = ctx.output("create_contact") or {}
@@ -139,8 +141,8 @@ def register_intake_workflow(services: IntakeServices) -> None:
 
         async def compute_deadlines(self, ctx: StepContext) -> dict:
             from cam.core.domain.models import Matter
-            from cam.core.workflows.intake.types import IntakeFields
             from cam.core.workflows.intake.deadlines import compute_deadlines
+            from cam.core.workflows.intake.types import IntakeFields
             cfg = svc.config or get_intake_config()
             parse_out = ctx.output("parse_lead") or {}
             matter_out = ctx.output("create_matter") or {}
@@ -148,14 +150,15 @@ def register_intake_workflow(services: IntakeServices) -> None:
             matter = Matter(**matter_out["matter"])
             case_cfg = cfg.get_case_type(fields.case_type)
             deadlines = await compute_deadlines(
-                matter, fields, case_cfg, svc.rule_store, svc.deadline_store, svc.scheduler, ctx.run_id
+                matter, fields, case_cfg, svc.rule_store, svc.deadline_store, svc.scheduler,
+                    ctx.run_id
             )
             return {"deadline_ids": [d.id for d in deadlines]}
 
         async def open_tasks(self, ctx: StepContext) -> dict:
             from cam.core.domain.models import Matter
-            from cam.core.workflows.intake.types import IntakeFields
             from cam.core.workflows.intake.tasks import render_tasks
+            from cam.core.workflows.intake.types import IntakeFields
             cfg = svc.config or get_intake_config()
             parse_out = ctx.output("parse_lead") or {}
             matter_out = ctx.output("create_matter") or {}
@@ -177,7 +180,12 @@ def register_intake_workflow(services: IntakeServices) -> None:
             matter = Matter(**matter_out["matter"])
             contact = Contact(**contact_out["contact"])
             case_cfg = cfg.get_case_type(fields.case_type)
-            draft_id, gaps = await draft_welcome(matter, contact, fields, case_cfg, svc.email, ctx.run_id)
+            draft_id, gaps = await draft_welcome(matter,
+                contact,
+                fields,
+                case_cfg,
+                svc.email,
+                ctx.run_id)
             return {"draft_id": draft_id, "gaps": [g.model_dump() for g in gaps]}
 
         async def send_welcome(self, ctx: StepContext) -> dict:
@@ -241,5 +249,8 @@ def configure_services(svc: IntakeServices) -> None:
 def get_services() -> IntakeServices:
     """Deprecated: services are now closure-injected at registration time."""
     if _services is None:
-        raise RuntimeError("Intake services not configured. Call register_intake_workflow(services).")
+        raise RuntimeError(
+            "Intake services not configured. "
+            "Call register_intake_workflow(services)."
+        )
     return _services

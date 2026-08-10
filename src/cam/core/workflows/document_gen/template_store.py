@@ -9,14 +9,14 @@ from __future__ import annotations
 import hashlib
 import re
 
-from cam.core.workflows.document_gen.types import TemplateSpec, TemplateVariable
+from cam.core.workflows.document_gen.types import TemplateSpec
 
 GAP_PLACEHOLDER = "[[MISSING: {label}]]"
 _NONDETERMINISTIC = re.compile(r"\bnow\s*\(|random\s*\(|uuid\s*\(", re.IGNORECASE)
 _JINJA_VAR = re.compile(r"\{\{\s*([\w.]+)\s*\}\}")
 
 
-class TemplateNotFound(KeyError):
+class TemplateNotFoundError(KeyError):
     def __init__(self, name: str) -> None:
         self.name = name
         super().__init__(f"Template {name!r} not found.")
@@ -44,11 +44,11 @@ class TemplateStore:
         """Return (TemplateSpec, bytes).  Returns latest version if version is None."""
         versions = self._templates.get(name)
         if not versions:
-            raise TemplateNotFound(name)
+            raise TemplateNotFoundError(name)
         if version is not None:
             entry = versions.get(version)
             if entry is None:
-                raise TemplateNotFound(f"{name}@v{version}")
+                raise TemplateNotFoundError(f"{name}@v{version}")
             return entry
         latest_version = max(versions)
         return versions[latest_version]

@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-import re
 from datetime import date, datetime
 from typing import Any
 
 import structlog
 
 from cam.core.domain.models import Matter
-from cam.core.workflows.document_gen.types import Gap, TemplateSpec, TemplateVariable
+from cam.core.workflows.document_gen.types import Gap, TemplateSpec
 
 log = structlog.get_logger(__name__)
 
@@ -49,7 +48,8 @@ def build_context(
     # Domain-derived defaults
     domain_map: dict[str, Any] = {
         "client.full_name": matter.client.name if matter.client else None,
-        "client.email": str(matter.client.email) if (matter.client and matter.client.email) else None,
+        "client.email": str(matter.client.email) if (matter.client and matter.client.email) else
+            None,
         "client.phone": matter.client.phone if matter.client else None,
         "matter.reference": matter.reference,
         "matter.title": matter.title,

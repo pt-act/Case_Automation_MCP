@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 from cam.core.services.qc.types import (
+    WARN_OR_FAIL_OR_PASS,
     CheckDescriptor,
     CheckResult,
     QCConfig,
-    SkipReason,
     Verdict,
-    WARN_OR_FAIL_OR_PASS,
 )
 
 
@@ -35,7 +34,6 @@ class ConsistencyCheck:
         mismatches: list[str] = []
         normalised_diffs: list[str] = []
 
-        canonical_ref = packet.matter.reference
         canonical_name = packet.matter.client.name if packet.matter.client else None
 
         # Check all documents share the same matter_id

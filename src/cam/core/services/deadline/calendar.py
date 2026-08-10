@@ -7,9 +7,9 @@ Missing year → loud failure, never a guess (spec §6 edge case).
 from __future__ import annotations
 
 import hashlib
-from datetime import date, datetime, timedelta, timezone
+from collections.abc import Callable
+from datetime import date, timedelta
 from functools import lru_cache
-from typing import Callable
 
 
 class CalendarError(Exception):
@@ -89,7 +89,7 @@ class Calendar:
         self._id = calendar_id
         self._holiday_fn: Callable[[int], frozenset[date]] = us_federal_holidays
 
-    @lru_cache(maxsize=50)
+    @lru_cache(maxsize=50)  # noqa: B019
     def _holidays(self, year: int) -> frozenset[date]:
         if year not in self.SUPPORTED_YEARS:
             raise CalendarError(

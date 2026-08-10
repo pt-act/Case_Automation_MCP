@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import UTC
+
 import pytest
 
 from cam.connectors.errors import TransientError
@@ -12,7 +14,6 @@ from cam.connectors.reference import (
     ReferenceEmailConnector,
 )
 from tests.connectors.harness import run_contract
-
 
 
 # a. Contract harness passes all reference adapters
@@ -44,7 +45,7 @@ async def test_harness_fails_broken_stub() -> None:
         async def list_deadlines(self, matter_id: str):  # type: ignore[return]
             return []
 
-    with pytest.raises(Exception):
+    with pytest.raises((AssertionError, AttributeError)):
         await run_contract(case=BrokenCaseAdapter())
 
 
@@ -52,6 +53,7 @@ async def test_harness_fails_broken_stub() -> None:
 async def test_email_send_idempotency() -> None:
     adapter = ReferenceEmailConnector()
     import uuid
+
     from cam.core.domain.models import Communication
 
     comm = Communication(
@@ -67,16 +69,18 @@ async def test_email_send_idempotency() -> None:
 
 # d. DocStore put→get checksum stable
 async def test_docstore_checksum_stable() -> None:
-    import hashlib, uuid
+    import hashlib
+    import uuid
+    from datetime import datetime
+
     from cam.core.domain.models import Document
-    from datetime import datetime, timezone
 
     adapter = ReferenceDocStoreConnector()
     content = b"stable content"
     doc = Document(
         id=str(uuid.uuid4()), matter_id="m1", name="f.pdf",
         mime_type="application/pdf", uri="", version=1,
-        privileged=True, checksum="", created_at=datetime.now(tz=timezone.utc),
+        privileged=True, checksum="", created_at=datetime.now(tz=UTC),
     )
     stored = await adapter.put(doc, content)
     _, fetched_bytes = await adapter.get(stored.id)
@@ -88,14 +92,15 @@ async def test_fault_injection_transient() -> None:
     adapter = ReferenceCaseConnector()
     adapter.inject_error(TransientError("reference_case", "forced transient"))
     import uuid
-    from datetime import datetime, timezone
-    from cam.core.domain.models import Contact
+    from datetime import datetime
+
     from cam.connectors.ports import MatterDraft
+    from cam.core.domain.models import Contact
 
     client = Contact(id=str(uuid.uuid4()), source="crm", name="X", external_ids={})
     draft = MatterDraft(
         reference="R", title="T", status="open",
-        client=client, opened_at=datetime.now(tz=timezone.utc), external_ids={},
+        client=client, opened_at=datetime.now(tz=UTC), external_ids={},
     )
     with pytest.raises(TransientError):
         await adapter.create_matter(draft)

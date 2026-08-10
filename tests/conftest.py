@@ -9,7 +9,7 @@ import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from cam.persistence.models import Base
-from cam.security.crypto import CryptoService, configure_crypto
+from cam.security.crypto import configure_crypto
 
 # ---------------------------------------------------------------------------
 # Encryption fixture — 32-byte test KEK
@@ -36,6 +36,16 @@ def _reset_global_singletons() -> None:
     import cam.obs.observability as obs_mod
     obs_mod._is_configured = False
 
+    # Domain pack — run the existing suite under the immigration reference pack
+    # so behaviour is identical to the pre-domain-packs baseline (DP-7 parity net).
+    # Tests that exercise pack selection directly (test_domain_packs.py) reset this
+    # via their own autouse fixture, which runs after this conftest fixture.
+    import cam.packs as packs
+    packs.reset_registry()
+    packs.register_builtin_packs()
+    packs.select_pack("immigration")
+    obs_mod.configure_pii_patterns()  # baseline ∪ immigration (A-number, passport)
+
     # Workflow service containers
     import cam.core.workflows.intake.workflow as intake_wf
     intake_wf._services = None
@@ -58,6 +68,11 @@ def _reset_global_singletons() -> None:
 
     import cam.core.workflows.document_routing.config as routing_cfg
     routing_cfg._config = routing_cfg.RoutingConfig()
+
+    # Populate intake + routing runtime config from the active (immigration) pack
+    # — the dependency inversion (G6). Overrides the bare defaults reset above so
+    # the suite runs on pack-sourced config, identical to the immigration baseline.
+    packs.apply_pack()
 
 
 # ---------------------------------------------------------------------------

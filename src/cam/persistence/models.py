@@ -16,14 +16,9 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
-    UniqueConstraint,
-    event,
-    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
-
-from cam.security.crypto import EncryptedStr
 
 
 class Base(DeclarativeBase):

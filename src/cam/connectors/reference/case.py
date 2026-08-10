@@ -8,11 +8,10 @@ Registered under name "reference".
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
 
 from cam.connectors.errors import ConnectorError, NotFoundError
 from cam.connectors.ports import MatterDraft
-from cam.core.domain.models import Contact, Deadline, Matter
+from cam.core.domain.models import Deadline, Matter
 
 
 class ReferenceCaseConnector:

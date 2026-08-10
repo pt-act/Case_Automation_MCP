@@ -22,7 +22,8 @@ class Event(BaseModel):
         ...,
         description="Normalised event type, e.g. 'matter.status_changed', 'lead.created'.",
     )
-    occurred_at: datetime = Field(..., description="When the event occurred (vendor-reported, UTC).")
+    occurred_at: datetime = Field(..., description="When the event "
+        "occurred (vendor-reported, UTC).")
     received_at: datetime = Field(..., description="When we received the webhook (UTC).")
     matter_ref: str | None = Field(
         None, description="External matter id/ref if resolvable from payload."

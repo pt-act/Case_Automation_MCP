@@ -30,9 +30,11 @@ def derive_change_id(
     return hashlib.sha256(raw.encode()).hexdigest()[:16]
 
 
-def webhook_change_id(matter_id: str, from_status: str, to_status: str, provider_event_id: str) -> str:
+def webhook_change_id(matter_id: str, from_status: str, to_status: str,
+    provider_event_id: str) -> str:
     return derive_change_id(matter_id, from_status, to_status, provider_event_id)
 
 
-def sweep_change_id(matter_id: str, from_status: str, to_status: str, transition_counter: int) -> str:
+def sweep_change_id(matter_id: str, from_status: str, to_status: str,
+    transition_counter: int) -> str:
     return derive_change_id(matter_id, from_status, to_status, str(transition_counter))

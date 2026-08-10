@@ -16,7 +16,7 @@ thanks to ``@runtime_checkable``.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import structlog
 
@@ -108,6 +108,6 @@ class CeleryScheduler:
         Returns:
             Current UTC datetime (timezone-aware).
         """
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
         log.debug("celery_scheduler.heartbeat", ts=now.isoformat())
         return now

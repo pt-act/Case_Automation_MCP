@@ -88,7 +88,7 @@ def test_context_schema_mismatch_rejected() -> None:
         async def step_a(self, ctx: StepContext) -> dict: return {}
 
     defn = get_workflow_latest("schema_wf")
-    with pytest.raises(Exception):
+    with pytest.raises((ValueError, KeyError)):
         defn.validate_context({"wrong_field": "value"})
 
     # Valid context passes

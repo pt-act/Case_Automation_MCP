@@ -40,8 +40,8 @@ async def lifespan(app: FastAPI):  # noqa: ANN001
 
     # 1. Configure observability
     try:
-        from cam.obs.observability import configure_observability
         from cam.config.settings import Settings
+        from cam.obs.observability import configure_observability
         settings = Settings.model_validate({})
         configure_observability(
             service_name=settings.service_name,
@@ -51,9 +51,28 @@ async def lifespan(app: FastAPI):  # noqa: ANN001
     except Exception as exc:
         logging.warning("Observability config failed (non-fatal): %s", exc)
 
+    # 1b. Select the active domain pack (CAM_DOMAIN_PACK — no implicit default,
+    #     decision D-5) and compose the PII redaction set from it (baseline ∪ pack).
+    try:
+        from cam.config.settings import Settings
+        from cam.obs.observability import configure_pii_patterns
+        from cam.packs import activate_configured_pack, apply_pack
+
+        settings = Settings.model_validate({})
+        pack = activate_configured_pack(settings.domain_pack)
+        apply_pack(pack)          # populate intake/routing runtime config from the pack
+        configure_pii_patterns()  # compose PII redaction set (baseline ∪ pack)
+        log.info("sidecar.domain_pack_ready", pack=pack.name, version=pack.version)
+    except Exception as exc:
+        # No pack selected / invalid pack is a refuse-to-serve condition; surface
+        # it loudly. (Startup remains non-aborting here to match the other steps;
+        # hardening to a hard abort is tracked in the domain-packs spec.)
+        log.error("sidecar.domain_pack_init_failed", error=str(exc))
+
     # 2. Configure crypto (KEK from secret store)
     try:
         import base64
+
         from cam.config.settings import Settings, build_secret_loader
         from cam.security.crypto import configure_crypto
         settings = Settings.model_validate({})
@@ -91,7 +110,8 @@ async def lifespan(app: FastAPI):  # noqa: ANN001
 
     # 5. Signing key for approval tokens
     try:
-        import os, base64
+        import base64
+        import os
         raw_kek = os.environ.get("CAM_ENCRYPTION_KEK", "")
         app.state.signing_key = base64.b64decode(raw_kek) if raw_kek else b"\x00" * 32
     except Exception:

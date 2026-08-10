@@ -1,4 +1,5 @@
-"""Connector framework — ports, errors, registry, middleware, webhook ingestion, reference adapters."""
+"""Connector framework — ports, errors, registry, middleware, webhook ingestion,
+    reference adapters."""
 
 from cam.connectors.errors import (
     AuthError,
@@ -20,7 +21,7 @@ from cam.connectors.ports import (
     TriggerSink,
 )
 from cam.connectors.registry import (
-    ConnectorNotFound,
+    ConnectorNotFoundError,
     get_connector,
     register_connector,
 )
@@ -32,7 +33,7 @@ __all__ = [
     "CRMConnector",
     "ConnectorError",
     "ConnectorHealth",
-    "ConnectorNotFound",
+    "ConnectorNotFoundError",
     "DocStoreConnector",
     "EmailConnector",
     "Event",

@@ -9,16 +9,13 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Protocol, runtime_checkable
 
-from cam.core.domain.models import ACL, Communication, Contact, Deadline, Document, Matter
-
-
 # ---------------------------------------------------------------------------
 # MatterDraft — input to CaseConnector.create_matter
 # Writable subset of Matter; no id/source (those are assigned by the vendor).
 # ---------------------------------------------------------------------------
-
-
 from pydantic import BaseModel, Field
+
+from cam.core.domain.models import ACL, Communication, Contact, Deadline, Document, Matter
 
 
 class MatterDraft(BaseModel):
@@ -95,5 +92,5 @@ class DocStoreConnector(Protocol):
 class TriggerSink(Protocol):
     """Receives normalised Events and turns them into workflow run triggers."""
 
-    async def enqueue(self, event: "Event") -> str: ...  # noqa: F821
+    async def enqueue(self, event: Event) -> str: ...  # noqa: F821
     """Returns an opaque trigger id.  Idempotent on event.id."""

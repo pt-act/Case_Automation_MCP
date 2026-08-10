@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import UTC
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Request
@@ -28,11 +29,10 @@ async def approval_page(raw_token: str, request: Request) -> HTMLResponse:
     if err:
         raise HTTPException(status_code=401, detail=f"Invalid token: {err}")
 
-    import json
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     exp = payload.get("exp", 0)
-    expires_at = datetime.fromtimestamp(exp, tz=timezone.utc).isoformat()
+    expires_at = datetime.fromtimestamp(exp, tz=UTC).isoformat()
 
     html = f"""<!DOCTYPE html>
 <html lang="en">
@@ -95,7 +95,7 @@ async def submit_approval(
             store=store,
         )
     except GateResolutionError as exc:
-        raise HTTPException(status_code=exc.status_code, detail=exc.reason)
+        raise HTTPException(status_code=exc.status_code, detail=exc.reason) from exc
 
     return JSONResponse(
         {"decision": result.decision, "run_id": result.run_id, "gate": result.gate_request_id}

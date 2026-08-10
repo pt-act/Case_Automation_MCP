@@ -15,7 +15,6 @@ from __future__ import annotations
 
 from typing import Any
 
-
 # ---------------------------------------------------------------------------
 # Base class
 # ---------------------------------------------------------------------------
@@ -108,7 +107,6 @@ def classify(
     except ImportError:
         pass
 
-    detail_prefix = "[redacted — no body/PII in error detail]"
 
     # --- httpx Response ---
     if _httpx and isinstance(response_or_exc, _httpx.Response):

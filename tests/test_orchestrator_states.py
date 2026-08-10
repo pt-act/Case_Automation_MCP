@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -15,11 +15,9 @@ from cam.core.orchestrator.states import (
     is_legal_run_transition,
     is_legal_step_transition,
 )
-from cam.core.orchestrator.store import IllegalTransition, InMemoryRunStore
-from cam.core.orchestrator.dsl import GateConfig, StepContext, clear_registry, workflow
+from cam.core.orchestrator.store import IllegalTransitionError, InMemoryRunStore
 
-
-NOW = datetime.now(tz=timezone.utc)
+NOW = datetime.now(tz=UTC)
 
 
 def make_run(dedupe_key: str | None = None) -> WorkflowRun:
@@ -38,7 +36,7 @@ def make_run(dedupe_key: str | None = None) -> WorkflowRun:
 async def test_create_run_fanout_count() -> None:
     store = InMemoryRunStore()
     run = make_run()
-    from cam.core.orchestrator.states import StepState, StepStatus
+    from cam.core.orchestrator.states import StepState
     steps = [
         StepState(run_id=run.id, step=f"step_{i}", seq=i, idem_key=f"{run.id}:step_{i}")
         for i in range(4)
@@ -63,7 +61,7 @@ async def test_illegal_transition_rejected() -> None:
     store = InMemoryRunStore()
     run = make_run()
     await store.create_run(run, [])
-    with pytest.raises(IllegalTransition):
+    with pytest.raises(IllegalTransitionError):
         await store.update_run_status(run.id, RunStatus.SUCCEEDED)  # queued→succeeded is illegal
 
 

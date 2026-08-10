@@ -15,7 +15,7 @@ Category = Literal["case", "crm", "email", "docstore"]
 _REGISTRY: dict[str, dict[str, Any]] = {}
 
 
-class ConnectorNotFound(KeyError):
+class ConnectorNotFoundError(KeyError):
     def __init__(self, name: str, category: Category) -> None:
         super().__init__(f"No {category!r} connector registered under name {name!r}.")
         self.connector_name = name
@@ -52,11 +52,11 @@ def register_connector(
 
 
 def get_connector(name: str, category: Category) -> object:
-    """Retrieve a registered adapter.  Raises ConnectorNotFound if absent."""
+    """Retrieve a registered adapter.  Raises ConnectorNotFoundError if absent."""
     entry = _REGISTRY.get(name, {})
     adapter = entry.get(category)
     if adapter is None:
-        raise ConnectorNotFound(name, category)
+        raise ConnectorNotFoundError(name, category)
     return adapter
 
 

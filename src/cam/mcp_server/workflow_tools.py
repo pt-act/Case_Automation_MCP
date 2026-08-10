@@ -11,8 +11,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-from cam.core.orchestrator.states import RunStatus, StepStatus, WorkflowRun
-
+from cam.core.orchestrator.states import RunStatus, WorkflowRun
 
 # ---------------------------------------------------------------------------
 # workflow.run
@@ -29,7 +28,10 @@ class WorkflowRunInput(BaseModel):
     )
     idem_key: str | None = Field(
         None,
-        description="Optional explicit idempotency/dedupe key. A duplicate key returns the existing run.",
+        description=(
+            "Optional explicit idempotency/dedupe key. "
+            "A duplicate key returns the existing run."
+        ),
     )
 
 
@@ -39,7 +41,8 @@ class WorkflowRunOutput(BaseModel):
     run_id: str = Field(..., description="The run id.")
     status: str = Field(..., description="Current run status.")
     current_step: str | None = Field(None, description="Name of the next/active step.")
-    is_new: bool = Field(..., description="True if a new run was created; False if idempotent return.")
+    is_new: bool = Field(..., description="True if a new run "
+        "was created; False if idempotent return.")
 
 
 async def tool_workflow_run(
@@ -61,7 +64,6 @@ async def tool_workflow_run(
         store=store,
         idem_key=inp.idem_key,
     )
-    is_new = run.trigger.dedupe_key == inp.idem_key or inp.idem_key is None
     return WorkflowRunOutput(
         run_id=run.id,
         status=run.status,
@@ -184,7 +186,7 @@ async def tool_approval_decide(
     The agent's constrained service identity must hold GATE_APPROVE permission.
     Risk tier: gated (human) — this IS the gate resolution.
     """
-    from cam.core.orchestrator.gates import GateResolutionError, resolve_gate
+    from cam.core.orchestrator.gates import resolve_gate
 
     decision_record = await resolve_gate(
         raw_token=inp.token,

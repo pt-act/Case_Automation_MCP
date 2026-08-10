@@ -15,23 +15,19 @@ import asyncio
 import json
 import time
 import uuid
-from dataclasses import dataclass, field
-from typing import Any, Callable
+from collections.abc import Callable
+from dataclasses import dataclass
+from typing import Any
 
 import httpx
-import tenacity
 
 from cam.connectors.errors import (
-    AuthError,
     ConnectorError,
     FatalError,
-    NotFoundError,
     RateLimitError,
-    TransientError,
     classify,
 )
 from cam.connectors.health import ConnectorHealth, get_health
-
 
 # ---------------------------------------------------------------------------
 # RetryPolicy — configurable per call
@@ -214,14 +210,14 @@ class OutboundClient:
                             self.connector,
                             f"Retry exhausted after {attempt} attempts.",
                             cause=exc,
-                        )
+                        ) from exc
                     raise
                 wait = _jitter_wait(attempt, retry.base_delay, retry.max_delay)
                 if isinstance(exc, RateLimitError) and exc.retry_after is not None:
                     wait = max(wait, exc.retry_after)
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
-                    raise FatalError(self.connector, "Total deadline exceeded mid-retry.")
+                    raise FatalError(self.connector, "Total deadline exceeded mid-retry.") from exc
                 await asyncio.sleep(min(wait, remaining))
 
     async def _record_success(

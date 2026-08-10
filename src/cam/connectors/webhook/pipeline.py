@@ -11,8 +11,9 @@ import hashlib
 import hmac
 import json
 import uuid
-from datetime import datetime, timezone
-from typing import Any, Callable
+from collections.abc import Callable
+from datetime import UTC, datetime
+from typing import Any
 
 import structlog
 
@@ -67,7 +68,7 @@ def verify_signature(
     if timestamp_header is not None:
         try:
             ts = float(timestamp_header)
-            now = datetime.now(tz=timezone.utc).timestamp()
+            now = datetime.now(tz=UTC).timestamp()
             if abs(now - ts) > REPLAY_WINDOW_SECONDS:
                 return False
         except (ValueError, TypeError):
@@ -207,8 +208,8 @@ def reference_normaliser(connector: str, raw: dict) -> Event | None:
         connector=connector,
         provider_event_id=raw.get("id", str(uuid.uuid4())),
         type=event_type,
-        occurred_at=datetime.now(tz=timezone.utc),
-        received_at=datetime.now(tz=timezone.utc),
+        occurred_at=datetime.now(tz=UTC),
+        received_at=datetime.now(tz=UTC),
         matter_ref=raw.get("matter_id"),
         payload={k: v for k, v in raw.items() if k not in ("id", "type", "event_type")},
     )

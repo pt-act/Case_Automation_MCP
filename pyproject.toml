@@ -59,6 +59,9 @@ dev = [
     "sqlalchemy[mypy]>=2.0",
     "types-redis>=4.6",
     "types-Jinja2>=2.11",
+    # Security scanning (CI)
+    "bandit>=1.7",
+    "pip-audit>=2.7",
 ]
 
 [tool.ruff]

@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -73,7 +73,7 @@ class AuditService:
         latest = await self._repo.get_latest()
         prev_hash = latest.record_hash if latest else _GENESIS_HASH
 
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
 
         record_body: dict[str, Any] = {
             "canonical_version": _CANONICAL_VERSION,

@@ -1,7 +1,10 @@
 """Intake config loading — mapping schema, case-type configs, dedupe config — spec G1.2.
 
-All values are ASSUMPTION (confirm) until the firm confirms exact field sets,
-case types, and dedupe thresholds.  Config is data-driven (CONVENTIONS §8).
+Case-type configs are domain-specific and live in the **active domain pack**, not
+here (G6 / CONVENTIONS §5, §8): `apply_pack()` populates the runtime config from
+the pack at startup. The neutral default below carries no practice-specific value
+— it only keeps the engine self-consistent when no pack has been applied (e.g. an
+isolated unit test). Config is data-driven (CONVENTIONS §8).
 """
 
 from __future__ import annotations
@@ -11,38 +14,19 @@ from dataclasses import dataclass, field
 from cam.core.workflows.intake.types import CaseTypeConfig, TaskTemplate
 
 # ---------------------------------------------------------------------------
-# Default case-type configs — ASSUMPTION (confirm) for all values
+# Neutral, domain-agnostic fallback — a single generic case type. The real
+# case types come from the active pack (each practice defines its own set).
+# No domain value is hard-coded here.
 # ---------------------------------------------------------------------------
 
+_NEUTRAL_CASE_TYPE = "default"
+
 DEFAULT_CASE_TYPE_CONFIGS: dict[str, CaseTypeConfig] = {
-    "family-based": CaseTypeConfig(
-        case_type="family-based",
-        required_fields=["full_name", "dob", "country_of_origin", "current_status", "email"],
-        opening_tasks=[
-            TaskTemplate(title="Collect I-130 petition documents", assignee_role="paralegal", sort=1),
-            TaskTemplate(title="Conflict check", assignee_role="attorney", sort=2),
-            TaskTemplate(title="Open matter in case system", assignee_role="paralegal", sort=3),
-        ],
-        deadline_rule_ids=["rfe_response"],
-        welcome_template_id="family_based_welcome",
-    ),
-    "employment-based": CaseTypeConfig(
-        case_type="employment-based",
-        required_fields=["full_name", "dob", "country_of_origin", "current_status", "email"],
-        opening_tasks=[
-            TaskTemplate(title="Collect employer documentation", assignee_role="paralegal", sort=1),
-            TaskTemplate(title="Conflict check", assignee_role="attorney", sort=2),
-            TaskTemplate(title="Open matter in case system", assignee_role="paralegal", sort=3),
-        ],
-        deadline_rule_ids=[],
-        welcome_template_id="employment_based_welcome",
-    ),
-    "other/uncategorised": CaseTypeConfig(
-        case_type="other/uncategorised",
+    _NEUTRAL_CASE_TYPE: CaseTypeConfig(
+        case_type=_NEUTRAL_CASE_TYPE,
         required_fields=["full_name", "email"],
         opening_tasks=[
-            TaskTemplate(title="Initial client consultation", assignee_role="attorney", sort=1),
-            TaskTemplate(title="Open matter in case system", assignee_role="paralegal", sort=2),
+            TaskTemplate(title="Open matter in case system", assignee_role="staff", sort=1),
         ],
         deadline_rule_ids=[],
         welcome_template_id="default_welcome",
@@ -68,7 +52,7 @@ class IntakeConfig:
         default_factory=lambda: dict(DEFAULT_CASE_TYPE_CONFIGS)
     )
     dedupe: DedupeConfig = field(default_factory=DedupeConfig)
-    default_case_type: str = "other/uncategorised"
+    default_case_type: str = _NEUTRAL_CASE_TYPE
     confidence_threshold: float = 0.80
 
     def get_case_type(self, case_type: str | None) -> CaseTypeConfig:

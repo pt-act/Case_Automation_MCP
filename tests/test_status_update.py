@@ -2,23 +2,26 @@
 
 from __future__ import annotations
 
-import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
+from cam.connectors.reference import ReferenceCaseConnector, ReferenceEmailConnector
 from cam.core.domain.models import Contact, Matter
 from cam.core.orchestrator.dsl import clear_registry
 from cam.core.orchestrator.store import InMemoryRunStore
 from cam.core.services.qc.checks import register_all
 from cam.core.services.qc.registry import clear_registry as qc_clear
 from cam.core.workflows.status_update.change_id import (
-    derive_change_id, sweep_change_id, webhook_change_id,
+    derive_change_id,
+    sweep_change_id,
+    webhook_change_id,
 )
 from cam.core.workflows.status_update.draft import (
-    create_status_update_draft, resolve_recipients,
+    create_status_update_draft,
+    resolve_recipients,
 )
 from cam.core.workflows.status_update.store import LastKnownStatusStore, StatusUpdateConfig
 from cam.core.workflows.status_update.types import MatterStatusDelta
@@ -28,10 +31,8 @@ from cam.core.workflows.status_update.workflow import (
     register_status_update_workflow,
     sweep_matters,
 )
-from cam.connectors.reference import ReferenceCaseConnector, ReferenceEmailConnector
 
-
-NOW = datetime(2026, 6, 1, 12, 0, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 6, 1, 12, 0, 0, tzinfo=UTC)
 
 
 # ---------------------------------------------------------------------------
@@ -77,7 +78,8 @@ def _delta(
     )
 
 
-def _svc(allow_list: list[str] | None = None) -> tuple[StatusUpdateServices, ReferenceCaseConnector, ReferenceEmailConnector]:
+def _svc(allow_list: list[str] | None = None) -> tuple[StatusUpdateServices
+    , ReferenceCaseConnector, ReferenceEmailConnector]:
     case = ReferenceCaseConnector()
     email = ReferenceEmailConnector()
     store = LastKnownStatusStore()
@@ -176,7 +178,11 @@ async def test_draft_created_once() -> None:
     matter = _matter()
     delta = _delta()
     recipients = [matter.client]
-    draft_id, prompt_ver = await create_status_update_draft(delta, matter, recipients, email, "run-001")
+    draft_id, prompt_ver = await create_status_update_draft(delta,
+        matter,
+        recipients,
+        email,
+        "run-001")
     assert draft_id
     assert prompt_ver == "v1"
 
@@ -281,7 +287,12 @@ async def test_delivered_change_id_prevents_second_run() -> None:
     run_store = InMemoryRunStore()
     change_id = webhook_change_id("m1", "pending", "approved", "evt-001")
     svc.status_store.mark_delivered(change_id, "existing-run")
-    result = await handle_status_change_event("m1", "pending", "approved", "evt-001", run_store, svc)
+    result = await handle_status_change_event("m1",
+        "pending",
+        "approved",
+        "evt-001",
+        run_store,
+        svc)
     assert result is not None
     assert result.get("noop") is True
 
@@ -313,7 +324,10 @@ async def test_draft_step_emits_audit_record() -> None:
     recipients = [matter.client]
     draft_id, _ = await create_status_update_draft(delta, matter, recipients, email, "run-001")
     # Simulate audit call (as workflow step does)
-    await fake_audit(actor="test", action="draft_created", inputs={}, outputs={"draft_id": draft_id})
+    await fake_audit(actor="test",
+        action="draft_created",
+        inputs={},
+        outputs={"draft_id": draft_id})
     assert any(r["action"] == "draft_created" for r in audit_records)
 
 

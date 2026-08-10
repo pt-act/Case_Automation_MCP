@@ -4,7 +4,13 @@ from __future__ import annotations
 
 import pytest
 
-from cam.connectors.ports import CaseConnector, CRMConnector, DocStoreConnector, EmailConnector, MatterDraft
+from cam.connectors.ports import (
+    CaseConnector,
+    CRMConnector,
+    DocStoreConnector,
+    EmailConnector,
+    MatterDraft,
+)
 from cam.connectors.reference import (
     ReferenceCaseConnector,
     ReferenceCRMConnector,
@@ -12,7 +18,7 @@ from cam.connectors.reference import (
     ReferenceEmailConnector,
 )
 from cam.connectors.registry import (
-    ConnectorNotFound,
+    ConnectorNotFoundError,
     clear_registry,
     get_connector,
     register_connector,
@@ -58,13 +64,13 @@ def test_registry_returns_registered_adapter() -> None:
 
 # 1d. Registry raises on unknown name/category
 def test_registry_raises_unknown_name() -> None:
-    with pytest.raises(ConnectorNotFound):
+    with pytest.raises(ConnectorNotFoundError):
         get_connector("no-such-connector", "case")
 
 
 def test_registry_raises_missing_category() -> None:
     register_connector("vendor-no-crm", case=ReferenceCaseConnector())
-    with pytest.raises(ConnectorNotFound):
+    with pytest.raises(ConnectorNotFoundError):
         get_connector("vendor-no-crm", "crm")
 
 

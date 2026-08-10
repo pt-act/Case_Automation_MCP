@@ -5,12 +5,12 @@ from __future__ import annotations
 import math
 
 import pytest
+from pydantic import ValidationError
 
 from cam.core.services.extraction.types import (
-    ExtractInput,
     ExtractedField,
+    ExtractInput,
     ExtractionSource,
-    MappingProfile,
     PageCoverage,
 )
 
@@ -47,7 +47,7 @@ def test_confidence_valid_passes() -> None:
 
 # b. ExtractInput threshold validation [0,1]
 def test_extract_input_threshold_out_of_range() -> None:
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         ExtractInput(input_ref="doc1", content_kind="pdf", threshold=1.5)
 
 
@@ -60,7 +60,7 @@ def test_extract_input_valid() -> None:
 def test_proposal_round_trip() -> None:
     from cam.core.services.extraction.types import ExtractionProposal
 
-    source = ExtractionSource(page=1, method="text")
+    ExtractionSource(page=1, method="text")
     field = _field(0.8)
     cov = PageCoverage(total_pages=1, text_pages=[1])
     proposal = ExtractionProposal(

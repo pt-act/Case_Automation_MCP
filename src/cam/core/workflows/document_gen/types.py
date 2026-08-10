@@ -24,7 +24,8 @@ class TemplateSpec(BaseModel):
     name: str = Field(..., description="Unique template id — resource key.")
     version: int = Field(1, description="Template content version, pinned per render.")
     format: Literal["docx", "html"] = "docx"
-    target_form_id: str | None = Field(None, description="e.g. 'I-130'. ASSUMPTION (confirm)")
+    target_form_id: str | None = Field(None, description="A pack form id "
+        "(see the active pack's prefill_forms).")
     privileged_default: bool = Field(True, description="ASSUMPTION (confirm): default true.")
     variables: list[TemplateVariable] = Field(default_factory=list)
     checksum: str = Field("", description="SHA-256 of template source bytes.")

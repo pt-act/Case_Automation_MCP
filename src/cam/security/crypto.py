@@ -157,9 +157,9 @@ def decrypt(token: bytes) -> bytes:
 # SQLAlchemy EncryptedStr column type
 # ---------------------------------------------------------------------------
 
-from sqlalchemy import String
-from sqlalchemy.engine import Dialect
-from sqlalchemy.types import TypeDecorator
+from sqlalchemy import String  # noqa: E402
+from sqlalchemy.engine import Dialect  # noqa: E402
+from sqlalchemy.types import TypeDecorator  # noqa: E402
 
 
 class EncryptedStr(TypeDecorator[str]):

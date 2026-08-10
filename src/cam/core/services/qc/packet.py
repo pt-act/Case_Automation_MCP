@@ -80,5 +80,6 @@ class VerificationPacket(BaseModel):
         description="Caller's claim whether this packet is destined for an external recipient.",
     )
 
-    now: datetime = Field(..., description="Reference time — injected; never derived inside checks.")
+    now: datetime = Field(..., description="Reference time — injected; "
+        "never derived inside checks.")
     config_snapshot: QCConfig = Field(default_factory=QCConfig)

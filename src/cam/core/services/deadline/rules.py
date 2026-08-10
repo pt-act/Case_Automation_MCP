@@ -9,7 +9,6 @@ A bad rule never silently loads alongside good ones without surfacing the reject
 from __future__ import annotations
 
 import hashlib
-import re
 from typing import Any
 
 import structlog
@@ -62,7 +61,7 @@ class RuleStore:
         """
         rule = _parse_and_validate(yaml_content)
         version = _content_hash(yaml_content)
-        rule_ref = RuleRef(
+        RuleRef(
             rule_id=rule.rule_id,
             rule_version=version,
             jurisdiction=rule.jurisdiction,
@@ -76,6 +75,18 @@ class RuleStore:
 
         existing.append((version, rule))
         log.info("rule_store.loaded", rule_id=rule.rule_id, version=version)
+        return rule
+
+    def register_rule(self, rule: DeadlineRule, *, version: str | None = None) -> DeadlineRule:
+        """Append an already-parsed `DeadlineRule` (e.g. from the active domain
+        pack) without going through YAML. Content-hash versioned and idempotent,
+        mirroring `load()`.  Used by `cam.packs.build_rule_store_from_pack`."""
+        version = version or _content_hash(rule.model_dump_json())
+        existing = self._registry.setdefault(rule.rule_id, [])
+        if any(v == version for v, _ in existing):
+            return rule
+        existing.append((version, rule))
+        log.info("rule_store.registered", rule_id=rule.rule_id, version=version)
         return rule
 
     def active(self, rule_id: str, jurisdiction: str = "US") -> DeadlineRule:
@@ -99,7 +110,7 @@ class RuleStore:
         ]
 
     def rule_version(self, rule_id: str, jurisdiction: str = "US") -> str:
-        rule = self.active(rule_id, jurisdiction)
+        self.active(rule_id, jurisdiction)
         entries = self._registry.get(rule_id, [])
         for v, r in reversed(entries):
             if r.jurisdiction == jurisdiction:
@@ -158,7 +169,8 @@ def _parse_and_validate(yaml_content: str) -> DeadlineRule:
     reminders: list[ReminderOffset] = []
     for r in raw.get("reminders", []):
         try:
-            reminders.append(ReminderOffset(**r) if isinstance(r, dict) else ReminderOffset(amount=r, unit="days"))
+            reminders.append(ReminderOffset(**r) if isinstance(r,
+                dict) else ReminderOffset(amount=r, unit="days"))
         except Exception as exc:
             raise RuleValidationError(rule_id, f"Invalid reminder: {exc}") from exc
 

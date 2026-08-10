@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from datetime import UTC
 from typing import Any
 
 import structlog
@@ -29,7 +30,7 @@ class InMemoryVersionLedger:
     """
 
     def __init__(self) -> None:
-        self._versions: dict[tuple, int] = {}          # (matter_id, template_name, doc_key) → latest
+        self._versions: dict[tuple, int] = {}  # (matter_id, template_name, doc_key) → latest
         self._idem: dict[str, Document] = {}            # idem_key → stored Document
         self._idem_checksums: dict[str, str] = {}       # idem_key → checksum at store time
 
@@ -91,8 +92,8 @@ async def store_document(
     if existing is not None:
         return existing
 
-    from datetime import datetime, timezone
     import uuid
+    from datetime import datetime
 
     version = ledger.next_version(matter_id, template_name, doc_key)
     doc = Document(
@@ -105,7 +106,7 @@ async def store_document(
         version=version,
         privileged=privileged,
         checksum=rendered_checksum,
-        created_at=datetime.now(tz=timezone.utc),
+        created_at=datetime.now(tz=UTC),
     )
     stored = await docstore.put(doc, rendered_bytes)
     ledger.record_idem(idem_key, stored, rendered_checksum)

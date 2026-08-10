@@ -8,7 +8,7 @@ import structlog
 
 from cam.core.services.qc.packet import VerificationPacket
 from cam.core.services.qc.registry import run_checks
-from cam.core.services.qc.types import QCConfig, QCReport, compute_config_fingerprint
+from cam.core.services.qc.types import QCReport, compute_config_fingerprint
 
 log = structlog.get_logger(__name__)
 

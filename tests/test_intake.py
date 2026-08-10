@@ -2,26 +2,26 @@
 
 from __future__ import annotations
 
-import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
+from cam.connectors.reference import (
+    ReferenceCaseConnector,
+    ReferenceCRMConnector,
+    ReferenceEmailConnector,
+)
 from cam.core.domain.models import Contact, Matter
 from cam.core.orchestrator.dsl import clear_registry
-from cam.core.orchestrator.idempotency import InMemoryIdempotencyStore
 from cam.core.orchestrator.store import InMemoryRunStore
 from cam.core.services.deadline.rules import RuleStore
 from cam.core.services.deadline.schedule import DeadlineStore, InMemoryScheduler
 from cam.core.workflows.intake.config import (
     CaseTypeConfig,
-    DedupeConfig,
     IntakeConfig,
     TaskTemplate,
-    get_intake_config,
-    set_intake_config,
 )
 from cam.core.workflows.intake.dedupe import dedupe_contact
 from cam.core.workflows.intake.parse import parse_lead
@@ -35,14 +35,8 @@ from cam.core.workflows.intake.types import (
     MatchRef,
 )
 from cam.core.workflows.intake.welcome import draft_welcome, send_welcome
-from cam.connectors.reference import (
-    ReferenceCRMConnector,
-    ReferenceCaseConnector,
-    ReferenceEmailConnector,
-)
 
-
-NOW = datetime(2026, 6, 1, 12, 0, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 6, 1, 12, 0, 0, tzinfo=UTC)
 
 
 # ---------------------------------------------------------------------------
@@ -70,7 +64,8 @@ def _cfg_with_tasks() -> IntakeConfig:
             "other/uncategorised": CaseTypeConfig(
                 case_type="other/uncategorised",
                 required_fields=["full_name", "email"],
-                opening_tasks=[TaskTemplate(title="Initial consult", assignee_role="attorney", sort=1)],
+                opening_tasks=[TaskTemplate(title="Initial consult", assignee_role="attorney",
+                    sort=1)],
                 deadline_rule_ids=[],
                 welcome_template_id="default_welcome",
             ),
@@ -80,16 +75,16 @@ def _cfg_with_tasks() -> IntakeConfig:
 
 
 def _email_lead(**kwargs) -> LeadPayload:
-    defaults = dict(
-        source_channel="email",
-        received_at=NOW,
-        raw={
+    defaults = {
+        "source_channel": "email",
+        "received_at": NOW,
+        "raw": {
             "full_name": "Ana Garcia",
             "email": "ana@example.com",
             "country_of_origin": "MX",
             "case_type": "family-based",
         },
-    )
+    }
     return LeadPayload(**{**defaults, **kwargs})
 
 
@@ -317,7 +312,7 @@ async def test_send_is_idempotent() -> None:
 # ──────────────────────────────────────────────────────────────
 
 async def test_workflow_registers_correct_steps() -> None:
-    from cam.core.workflows.intake.workflow import register_intake_workflow, IntakeServices
+    from cam.core.workflows.intake.workflow import IntakeServices, register_intake_workflow
     register_intake_workflow(IntakeServices(
         extraction=None, crm=ReferenceCRMConnector(),
         case_connector=ReferenceCaseConnector(), email=ReferenceEmailConnector(),
@@ -334,7 +329,9 @@ async def test_workflow_registers_correct_steps() -> None:
 
 async def test_intake_run_tool_starts_run() -> None:
     from cam.core.workflows.intake.workflow import (
-        register_intake_workflow, IntakeServices, tool_intake_run,
+        IntakeServices,
+        register_intake_workflow,
+        tool_intake_run,
     )
     register_intake_workflow(IntakeServices(
         extraction=None, crm=ReferenceCRMConnector(),
@@ -350,7 +347,9 @@ async def test_intake_run_tool_starts_run() -> None:
 
 async def test_duplicate_lead_same_run() -> None:
     from cam.core.workflows.intake.workflow import (
-        register_intake_workflow, IntakeServices, tool_intake_run,
+        IntakeServices,
+        register_intake_workflow,
+        tool_intake_run,
     )
     register_intake_workflow(IntakeServices(
         extraction=None, crm=ReferenceCRMConnector(),
@@ -406,7 +405,8 @@ def test_pbt_task_completeness(n_templates: int) -> None:
 @given(n_templates=st.integers(min_value=1, max_value=10))
 @settings(max_examples=100)
 def test_pbt_task_ids_stable(n_templates: int) -> None:
-    templates = [TaskTemplate(title=f"Task {i}", assignee_role="paralegal", sort=i) for i in range(n_templates)]
+    templates = [TaskTemplate(title=f"Task {i}", assignee_role="paralegal"
+        , sort=i) for i in range(n_templates)]
     cfg = CaseTypeConfig(case_type="test", opening_tasks=templates)
     run1 = render_tasks("m1", cfg, "run-001")
     run2 = render_tasks("m1", cfg, "run-001")

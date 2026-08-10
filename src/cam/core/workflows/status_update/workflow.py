@@ -13,7 +13,7 @@ Closure captures them — no module-level mutable singleton.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import structlog
@@ -79,7 +79,8 @@ def register_status_update_workflow(services: StatusUpdateServices | None = None
         async def detect_change(self, ctx: StepContext) -> dict:
             delta = MatterStatusDelta(**ctx.context.get("delta", {}))
             triggered = svc.status_store.should_trigger(delta.to_status, svc.config)
-            return {"triggered": triggered, "change_id": delta.change_id, "to_status": delta.to_status}
+            return {"triggered": triggered, "change_id": delta.change_id,
+                "to_status": delta.to_status}
 
         async def compute_delta(self, ctx: StepContext) -> dict:
             delta = MatterStatusDelta(**ctx.context.get("delta", {}))
@@ -107,7 +108,8 @@ def register_status_update_workflow(services: StatusUpdateServices | None = None
                 return {"draft_id": "", "gaps": gaps, "blocked": True}
 
             from cam.core.workflows.status_update.draft import (
-                create_status_update_draft, resolve_recipients,
+                create_status_update_draft,
+                resolve_recipients,
             )
             recipients, _ = resolve_recipients(matter)
             draft_id, prompt_ver = await create_status_update_draft(
@@ -116,7 +118,8 @@ def register_status_update_workflow(services: StatusUpdateServices | None = None
             if svc.audit_fn:
                 try:
                     await svc.audit_fn(actor="status_update_workflow", action="draft_created",
-                                       inputs={"run_id": ctx.run_id}, outputs={"draft_id": draft_id},
+                                       inputs={"run_id": ctx.run_id},
+                                           outputs={"draft_id": draft_id},
                                        run_id=ctx.run_id)
                 except Exception:
                     pass
@@ -228,7 +231,7 @@ async def handle_status_change_event(
         to_status=to_status,
         change_id=change_id,
         source="webhook",
-        detected_at=datetime.now(tz=timezone.utc),
+        detected_at=datetime.now(tz=UTC),
     )
     trigger = make_agent_trigger("status_update_webhook", idem_key=change_id)
     run = await start_run(

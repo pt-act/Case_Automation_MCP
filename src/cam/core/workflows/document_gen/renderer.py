@@ -72,7 +72,7 @@ def _render_docxtpl(template_bytes: bytes, context: dict[str, Any]) -> bytes:
         tpl.save(out)
         return out.getvalue()
     except ImportError:
-        raise RenderError("docxtpl is not installed; cannot render .docx templates.")
+        raise RenderError("docxtpl is not installed; cannot render .docx templates.") from None
     except Exception as exc:
         raise RenderError(f"DOCX render failed: {exc}") from exc
 

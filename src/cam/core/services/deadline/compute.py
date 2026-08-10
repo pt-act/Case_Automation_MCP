@@ -7,16 +7,15 @@ Missing trigger input → typed error, no invented date.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from cam.core.services.deadline.calendar import Calendar, get_calendar
 from cam.core.services.deadline.types import (
+    ENGINE_VERSION,
     ComputationTrace,
     DeadlineRule,
-    ENGINE_VERSION,
     Offset,
-    ReminderOffset,
     RuleRef,
 )
 
@@ -98,7 +97,7 @@ def compute_due_date(
         calendar_version=cal.version(),
         adjustment=rule.adjust,
         due_at=due_at,
-        computed_at=as_of or datetime.now(tz=timezone.utc),
+        computed_at=as_of or datetime.now(tz=UTC),
         engine_version=ENGINE_VERSION,
     )
 
@@ -140,7 +139,7 @@ async def tool_deadline_compute(
     Returns: {due_at, trace, reminders_preview, past_due_flag}
     Writes one metadata audit record.
     """
-    now = as_of or datetime.now(tz=timezone.utc)
+    now = as_of or datetime.now(tz=UTC)
     trace = compute_due_date(rule, trigger_inputs, as_of=now, rule_ref=rule_ref)
     past_due_flag = trace.due_at < now
     reminders_preview = preview_reminders(rule, trace.due_at)

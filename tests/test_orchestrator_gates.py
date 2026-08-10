@@ -17,7 +17,6 @@ from cam.core.orchestrator.states import RunStatus
 from cam.core.orchestrator.store import InMemoryRunStore
 from cam.core.orchestrator.triggers import make_agent_trigger, start_run
 
-
 KEY = b"test-signing-key-32-bytes-padded"
 
 
@@ -27,7 +26,8 @@ def _clear() -> None:
 
 
 async def _build_gated_run(wf_name: str):
-    """Register a gated workflow under wf_name, run it to the gate, return (store, run_id, raw_token, token)."""
+    """Register a gated workflow under wf_name, run it to the gate, return (store, run_id,
+        raw_token, token)."""
 
     class _GatedWF:
         steps = ["step_a", "GATE:approve", "step_b"]

@@ -2,13 +2,11 @@
 
 from __future__ import annotations
 
-import logging
 from abc import abstractmethod
-from typing import Any, Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable
 
 from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
 
 # ---------------------------------------------------------------------------
 # Settings
@@ -66,6 +64,14 @@ class Settings(BaseSettings):
         "us-east-1", description="Configured data-residency region."
     )
 
+    # Domain pack selection (CAM_DOMAIN_PACK). No implicit default (decision D-5):
+    # required at startup; unset → refuse to serve. The engine is domain-agnostic.
+    domain_pack: str | None = Field(
+        None,
+        description="Active domain pack id, e.g. 'immigration' | 'consulting'. "
+        "Required at startup — there is no implicit default.",
+    )
+
     # Feature flags (per-workflow on/off)
     feature_flags: dict[str, bool] = Field(
         default_factory=dict,
@@ -96,7 +102,7 @@ class Settings(BaseSettings):
         return v
 
     @model_validator(mode="after")
-    def _vault_requires_addr(self) -> "Settings":
+    def _vault_requires_addr(self) -> Settings:
         if self.secret_backend == "vault" and not self.vault_addr:
             raise ValueError("vault_addr is required when secret_backend='vault'")
         return self
@@ -118,11 +124,11 @@ class SecretLoader(Protocol):
 
     @abstractmethod
     def get_secret(self, name: str) -> str:
-        """Return the secret value.  Raises SecretNotFound if absent."""
+        """Return the secret value.  Raises SecretNotFoundError if absent."""
         ...
 
 
-class SecretNotFound(Exception):
+class SecretNotFoundError(Exception):
     """Raised when a named secret cannot be found.  Never includes the value."""
 
     def __init__(self, name: str) -> None:
@@ -138,7 +144,7 @@ class EnvSecretLoader:
 
         value = os.environ.get(name)
         if value is None:
-            raise SecretNotFound(name)
+            raise SecretNotFoundError(name)
         return value
 
 
@@ -195,5 +201,5 @@ class FeatureFlags:
         return self._flags.get(workflow_key, False)
 
     @classmethod
-    def from_settings(cls, settings: Settings) -> "FeatureFlags":
+    def from_settings(cls, settings: Settings) -> FeatureFlags:
         return cls(settings.feature_flags)

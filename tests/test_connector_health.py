@@ -4,9 +4,7 @@ from __future__ import annotations
 
 import time
 
-import pytest
-
-from cam.connectors.errors import AuthError, TransientError
+from cam.connectors.errors import TransientError
 from cam.connectors.health import ConnectorHealth, reset_health
 
 

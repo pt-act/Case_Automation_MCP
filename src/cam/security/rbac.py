@@ -9,8 +9,8 @@ is a working default pending firm sign-off (spec §13.3, PTD §12).
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from enum import StrEnum
-from typing import Callable
 
 
 class Role(StrEnum):

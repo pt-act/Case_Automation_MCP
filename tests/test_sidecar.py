@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from fastapi.testclient import TestClient
@@ -15,7 +15,7 @@ from cam.connectors.registry import clear_registry, register_connector
 from cam.connectors.webhook.pipeline import reference_normaliser
 from cam.sidecar.main import create_app
 
-NOW = datetime(2026, 6, 1, 12, 0, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 6, 1, 12, 0, 0, tzinfo=UTC)
 WEBHOOK_SECRET = "test-secret"
 SIGNING_KEY = b"test-signing-key-32-bytes-padded"
 
@@ -45,7 +45,9 @@ def client():
 
     class _FakeSink:
         calls: list = []
-        async def enqueue(self, event): self._fake_sink_calls_append(event); return "t1"
+        async def enqueue(self, event):
+            self._fake_sink_calls_append(event)
+            return "t1"
         def _fake_sink_calls_append(self, e): self.calls.append(e)
 
     sink = _FakeSink()

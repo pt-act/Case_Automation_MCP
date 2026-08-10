@@ -12,7 +12,7 @@ Five scenarios are covered:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -29,21 +29,21 @@ from cam.core.orchestrator.gates import issue_token, resolve_gate
 from cam.core.orchestrator.idempotency import InMemoryIdempotencyStore
 from cam.core.orchestrator.states import RunStatus
 from cam.core.orchestrator.store import InMemoryRunStore
-from cam.core.orchestrator.triggers import make_agent_trigger, start_run
 from cam.core.services.deadline.rules import RuleStore
 from cam.core.services.deadline.schedule import DeadlineStore, InMemoryScheduler
-from cam.core.workflows.document_routing.acl_builder import AclBuilder
-from cam.core.workflows.document_routing.config import get_routing_config
-from cam.core.workflows.document_routing.privilege_gate import PrivilegeGate
 from cam.core.workflows.document_routing.service import RoutingDecisionStore, RoutingService
 from cam.core.workflows.document_routing.types import RouteOptions
 from cam.core.workflows.intake.config import CaseTypeConfig, IntakeConfig, TaskTemplate
 from cam.core.workflows.intake.types import LeadPayload
-from cam.core.workflows.intake.workflow import IntakeServices, register_intake_workflow, tool_intake_run
+from cam.core.workflows.intake.workflow import (
+    IntakeServices,
+    register_intake_workflow,
+    tool_intake_run,
+)
 
 pytestmark = pytest.mark.asyncio
 
-NOW = datetime(2026, 6, 1, 12, 0, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 6, 1, 12, 0, 0, tzinfo=UTC)
 SIGNING_KEY = b"test-signing-key-32-bytes-padded"
 
 
@@ -66,14 +66,16 @@ def _make_services() -> IntakeServices:
                 "family-based": CaseTypeConfig(
                     case_type="family-based",
                     required_fields=["full_name", "email"],
-                    opening_tasks=[TaskTemplate(title="Conflict check", assignee_role="attorney", sort=1)],
+                    opening_tasks=[TaskTemplate(title="Conflict check", assignee_role="attorney",
+                        sort=1)],
                     deadline_rule_ids=[],
                     welcome_template_id="family_welcome",
                 ),
                 "other/uncategorised": CaseTypeConfig(
                     case_type="other/uncategorised",
                     required_fields=["full_name", "email"],
-                    opening_tasks=[TaskTemplate(title="Initial consult", assignee_role="attorney", sort=1)],
+                    opening_tasks=[TaskTemplate(title="Initial consult", assignee_role="attorney",
+                        sort=1)],
                     deadline_rule_ids=[],
                     welcome_template_id="default_welcome",
                 ),
@@ -84,11 +86,14 @@ def _make_services() -> IntakeServices:
 
 
 def _make_engine(store):
-    return WorkflowEngine(store=store, idem_store=InMemoryIdempotencyStore(), signing_key=SIGNING_KEY)
+    return WorkflowEngine(store=store,
+        idem_store=InMemoryIdempotencyStore(),
+        signing_key=SIGNING_KEY)
 
 
 def _make_lead(**raw_overrides) -> LeadPayload:
-    raw = {"full_name": "Ana Garcia", "email": "ana@example.com", "case_type": "other/uncategorised"}
+    raw = {"full_name": "Ana Garcia", "email": "ana@example.com"
+        , "case_type": "other/uncategorised"}
     raw.update(raw_overrides)
     return LeadPayload(source_channel="email", received_at=NOW, raw=raw)
 

@@ -5,11 +5,12 @@ from __future__ import annotations
 import os
 
 import pytest
+from pydantic import ValidationError
 
 from cam.config.settings import (
     EnvSecretLoader,
     FeatureFlags,
-    SecretNotFound,
+    SecretNotFoundError,
     Settings,
 )
 
@@ -41,12 +42,15 @@ def test_settings_missing_required(monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv(key, raising=False)
     with pytest.raises(Exception) as exc_info:
         Settings()
-    assert "database_url" in str(exc_info.value).lower() or exc_info.type.__name__ == "ValidationError"
+    assert (
+        "database_url" in str(exc_info.value).lower()
+        or exc_info.type.__name__ == "ValidationError"
+    )
 
 
 # 3. Bad secret_backend value → error
 def test_settings_bad_backend() -> None:
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         _make_settings(secret_backend="ftp")
 
 
@@ -64,11 +68,11 @@ def test_env_secret_loader_resolves(monkeypatch: pytest.MonkeyPatch) -> None:
     assert loader.get_secret("MY_TEST_SECRET") == "super-secret-value"
 
 
-# 6. SecretNotFound raised
+# 6. SecretNotFoundError raised
 def test_env_secret_loader_not_found(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("NONEXISTENT_SECRET", raising=False)
     loader = EnvSecretLoader()
-    with pytest.raises(SecretNotFound) as exc_info:
+    with pytest.raises(SecretNotFoundError) as exc_info:
         loader.get_secret("NONEXISTENT_SECRET")
     assert "NONEXISTENT_SECRET" in str(exc_info.value)
     assert "super-secret-value" not in str(exc_info.value)

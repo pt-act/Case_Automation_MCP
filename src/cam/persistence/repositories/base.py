@@ -1,9 +1,15 @@
 from __future__ import annotations
 
 from typing import Any, Protocol, TypeVar
+
 from cam.core.domain.models import Communication, Contact, Deadline, Document, Matter, Task
 from cam.persistence.models import (
-    CommunicationORM, ContactORM, DeadlineORM, DocumentORM, MatterORM, TaskORM,
+    CommunicationORM,
+    ContactORM,
+    DeadlineORM,
+    DocumentORM,
+    MatterORM,
+    TaskORM,
 )
 
 T = TypeVar("T")
@@ -63,7 +69,6 @@ def _communication_to_domain(orm: CommunicationORM) -> Communication:
 
 
 def _task_to_domain(orm: TaskORM) -> type:
-    from cam.core.domain.models import Task
     return Task(
         id=orm.id, matter_id=orm.matter_id, title=orm.title,
         assignee=orm.assignee, due_at=orm.due_at, status=orm.status,

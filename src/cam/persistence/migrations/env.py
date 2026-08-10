@@ -20,7 +20,9 @@ target_metadata = Base.metadata
 _db_url = os.environ.get("CAM_DATABASE_URL") or os.environ.get("CAM_MIGRATION_URL")
 if _db_url:
     # Alembic migrations always run synchronously; convert async URL if needed.
-    _sync_url = _db_url.replace("+asyncpg", "+psycopg2").replace("postgresql+psycopg2", "postgresql")
+    _sync_url = _db_url.replace("+asyncpg",
+        "+psycopg2").replace("postgresql+psycopg2",
+        "postgresql")
     # keep postgresql+psycopg2 as-is; strip asyncpg
     _sync_url = _db_url.replace("+asyncpg", "")
     config.set_main_option("sqlalchemy.url", _sync_url)

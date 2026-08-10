@@ -7,7 +7,7 @@ this module defines the engine-specific wrapper types that reference it.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Literal
+from typing import Literal
 
 from pydantic import BaseModel, Field
 

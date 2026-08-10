@@ -10,12 +10,11 @@ from __future__ import annotations
 
 import hashlib
 import uuid
-from datetime import datetime, timezone
 from typing import Any
 
 import structlog
 
-from cam.core.domain.models import ACL, Document, Matter
+from cam.core.domain.models import Document, Matter
 from cam.core.workflows.document_routing.acl_builder import AclBuilder
 from cam.core.workflows.document_routing.classifier import Classifier
 from cam.core.workflows.document_routing.config import RoutingConfig, get_routing_config
@@ -25,7 +24,6 @@ from cam.core.workflows.document_routing.types import (
     RouteOptions,
     RouteResult,
     RoutingDecision,
-    RoutingDestination,
 )
 
 log = structlog.get_logger(__name__)
@@ -213,7 +211,7 @@ class RoutingService:
             )
             outcome = "moved"
         except Exception as exc:
-            from cam.connectors.errors import classify as classify_error, FatalError
+            from cam.connectors.errors import classify as classify_error
             err = classify_error(exc, "docstore")
             log.error("routing.move_failed", error=str(err), document_id=document.id)
             outcome = "blocked"

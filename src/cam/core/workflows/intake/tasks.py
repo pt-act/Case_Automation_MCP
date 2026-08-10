@@ -7,12 +7,10 @@ Idempotent on (run_id, step): re-running produces the same output without duplic
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timedelta, timezone
-from typing import Any
+from datetime import UTC, datetime, timedelta
 
 from cam.core.domain.models import Task
-from cam.core.workflows.intake.types import CaseTypeConfig, TaskTemplate
-
+from cam.core.workflows.intake.types import CaseTypeConfig
 
 ROLE_ASSIGNEE_MAP: dict[str, str] = {
     "paralegal": "paralegal_default",
@@ -33,7 +31,7 @@ def render_tasks(
     Idempotent: the same (run_id, matter_id, template.title) always maps to
     the same task id (via deterministic uuid5 derivation).
     """
-    now = now or datetime.now(tz=timezone.utc)
+    now = now or datetime.now(tz=UTC)
     tasks: list[Task] = []
 
     for template in sorted(case_cfg.opening_tasks, key=lambda t: t.sort):

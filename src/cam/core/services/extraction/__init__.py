@@ -9,8 +9,8 @@ from cam.core.services.extraction.errors import (
 )
 from cam.core.services.extraction.pipeline import ExtractionService, tool_document_extract
 from cam.core.services.extraction.types import (
-    ExtractInput,
     ExtractedField,
+    ExtractInput,
     ExtractionProposal,
     ExtractionSource,
     FieldMapping,

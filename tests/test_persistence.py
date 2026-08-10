@@ -3,23 +3,20 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
-import pytest_asyncio
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from cam.core.domain.models import Contact, Deadline, Document, Matter, Task
+from cam.core.domain.models import Contact, Matter, Task
 from cam.persistence.repositories import (
     ContactRepository,
-    DeadlineRepository,
-    DocumentRepository,
     MatterRepository,
     TaskRepository,
 )
 
-
-NOW = datetime(2026, 6, 1, 12, 0, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 6, 1, 12, 0, 0, tzinfo=UTC)
 
 
 def uid() -> str:
@@ -58,17 +55,19 @@ async def test_read_returns_domain_model(db_session: AsyncSession) -> None:
 
 # 3. FK enforced (matter without contact fails)
 async def test_matter_fk_enforced(db_session: AsyncSession) -> None:
-    from sqlalchemy.exc import IntegrityError
     from cam.persistence.repositories import MatterRepository
 
     repo = MatterRepository(db_session)
     client_id_that_doesnt_exist = uid()
-    ghost_contact = Contact(id=client_id_that_doesnt_exist, source="crm", name="Ghost", external_ids={})
+    ghost_contact = Contact(id=client_id_that_doesnt_exist,
+        source="crm",
+        name="Ghost",
+        external_ids={})
     m = Matter(
         id=uid(), source="case", reference="R", title="T",
         status="open", client=ghost_contact, opened_at=NOW, external_ids={},
     )
-    with pytest.raises(Exception):  # IntegrityError from FK violation
+    with pytest.raises(IntegrityError):  # FK violation
         await repo.add(m)
 
 

@@ -33,7 +33,6 @@ def resolve_recipients(
     Returns (recipients, gaps).
     A missing client email is a gap — not silently dropped.
     """
-    allowed = allowed_roles or _DEFAULT_RECIPIENT_ROLES
     gaps: list[str] = []
     recipients: list[Contact] = []
 

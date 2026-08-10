@@ -9,21 +9,20 @@ The four PBT properties:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from cam.core.domain.models import ACL, Contact, Deadline, Document, Matter
+from cam.connectors.reference import ReferenceDocStoreConnector
+from cam.core.domain.models import Contact, Document, Matter
 from cam.core.workflows.document_routing.acl_builder import AclBuilder
 from cam.core.workflows.document_routing.classifier import Classifier
 from cam.core.workflows.document_routing.config import (
     DOCUMENT_CLASSES,
-    ClassificationRule,
     RoutingConfig,
     get_routing_config,
-    set_routing_config,
 )
 from cam.core.workflows.document_routing.namer import Namer, Resolver
 from cam.core.workflows.document_routing.privilege_gate import PrivilegeGate
@@ -33,14 +32,11 @@ from cam.core.workflows.document_routing.service import (
     _derive_idem_key,
 )
 from cam.core.workflows.document_routing.types import (
-    GateVerdict,
     RouteOptions,
     RoutingDestination,
 )
-from cam.connectors.reference import ReferenceDocStoreConnector
 
-
-NOW = datetime(2026, 6, 1, 12, 0, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 6, 1, 12, 0, 0, tzinfo=UTC)
 
 
 # ---------------------------------------------------------------------------
@@ -72,7 +68,8 @@ def _cfg() -> RoutingConfig:
     return get_routing_config()
 
 
-def _service(docstore=None) -> tuple[RoutingService, RoutingDecisionStore, ReferenceDocStoreConnector]:
+def _service(docstore=None) -> tuple[RoutingService, RoutingDecisionStore,
+    ReferenceDocStoreConnector]:
     store = RoutingDecisionStore()
     ds = docstore or ReferenceDocStoreConnector()
     svc = RoutingService(store, ds)
@@ -382,7 +379,7 @@ async def test_idempotent_route_returns_duplicate() -> None:
     doc = _doc(classification="correspondence")
     await ds.put(doc, b"content")
     matter = _matter()
-    r1 = await svc.route(doc, matter, RouteOptions())
+    await svc.route(doc, matter, RouteOptions())
     r2 = await svc.route(doc, matter, RouteOptions())
     assert r2.outcome == "duplicate"
 
@@ -397,7 +394,7 @@ async def test_audit_written_before_return() -> None:
     doc = _doc(classification="correspondence")
     await ds.put(doc, b"content")
     matter = _matter()
-    result = await svc.route(doc, matter, RouteOptions())
+    await svc.route(doc, matter, RouteOptions())
     assert audit_calls  # at least one audit record written
     assert audit_calls[-1]["action"] == "document.route"
 
@@ -449,7 +446,8 @@ def test_pbt_totality_all_classes_resolve() -> None:
 
 @given(
     principals=st.lists(
-        st.text(min_size=1, max_size=10, alphabet=st.characters(whitelist_categories=("Lu","Ll","Nd"))),
+        st.text(min_size=1, max_size=10, alphabet=st.characters(whitelist_categories=("Lu","Ll",
+            "Nd"))),
         min_size=0, max_size=5, unique=True,
     )
 )
@@ -457,7 +455,7 @@ def test_pbt_totality_all_classes_resolve() -> None:
 def test_pbt_acl_never_broadens(principals: list[str]) -> None:
     """P4: ACL ⊆ matter allowed set for any allowed set."""
     builder = AclBuilder()
-    allowed_str = ",".join(principals)
+    ",".join(principals)
     matter = _matter(allowed=principals if principals else None)
     effective = principals if principals else ["c1", "attorney1"]
     matter_set = set(effective)

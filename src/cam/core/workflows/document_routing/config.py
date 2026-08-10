@@ -46,8 +46,11 @@ class FolderMap:
     def folder_for(self, class_name: str) -> str | None:
         return self.entries.get(class_name)
 
-    def validate_totality(self) -> None:
-        missing = DOCUMENT_CLASSES - set(self.entries.keys())
+    def validate_totality(self, classes: set[str] | frozenset[str] | None = None) -> None:
+        # Validate against the supplied class set (from the active domain pack) or,
+        # for backward compatibility, the module default immigration enumeration.
+        required = set(classes) if classes is not None else DOCUMENT_CLASSES
+        missing = required - set(self.entries.keys())
         if missing:
             raise ValueError(
                 f"FolderMap is missing entries for classes: {missing}. "
@@ -85,8 +88,15 @@ class ClassPermissionPolicy:
 
 @dataclass
 class RoutingConfig:
-    """Full routing configuration.  Loaded at startup; validated for totality."""
+    """Full routing configuration.  Loaded at startup; validated for totality.
 
+    `classes` is the document-class enumeration this config is validated against.
+    It comes from the active domain pack (`cam.packs.apply_pack`); the module
+    default `DOCUMENT_CLASSES` is the immigration reference set used until a pack
+    is applied.
+    """
+
+    classes: frozenset[str] = field(default_factory=lambda: frozenset(DOCUMENT_CLASSES))
     classification_rules: list[ClassificationRule] = field(default_factory=list)
     folder_map: FolderMap = field(default_factory=lambda: FolderMap(
         entries={c: f"docs/{c}" for c in DOCUMENT_CLASSES}
@@ -101,7 +111,7 @@ class RoutingConfig:
     routing_intent_version: str = "v1"
 
     def __post_init__(self) -> None:
-        self.folder_map.validate_totality()
+        self.folder_map.validate_totality(self.classes)
 
     def review_queue_folder(self) -> str:
         return self.folder_map.folder_for("unknown") or "review_queue"

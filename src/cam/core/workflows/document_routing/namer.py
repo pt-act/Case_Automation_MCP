@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from cam.core.domain.models import Document, Matter
 from cam.core.workflows.document_routing.config import (
-    DOCUMENT_CLASSES,
     RoutingConfig,
     get_routing_config,
 )
@@ -25,7 +24,7 @@ class Namer:
     ) -> str:
         """Return a deterministic, sanitised document name."""
         cfg = config or get_routing_config()
-        date_str = datetime.now(tz=timezone.utc).strftime("%Y%m%d")
+        date_str = datetime.now(tz=UTC).strftime("%Y%m%d")
         return cfg.naming_template.render(
             matter_reference=matter.reference,
             class_name=class_name,

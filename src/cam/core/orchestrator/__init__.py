@@ -24,7 +24,7 @@ from cam.core.orchestrator.states import (
     is_legal_run_transition,
     is_legal_step_transition,
 )
-from cam.core.orchestrator.store import IllegalTransition, InMemoryRunStore
+from cam.core.orchestrator.store import IllegalTransitionError, InMemoryRunStore
 from cam.core.orchestrator.triggers import make_agent_trigger, make_event_trigger, start_run
 
 __all__ = [
@@ -36,7 +36,7 @@ __all__ = [
     "GateRequest",
     "GateResolutionError",
     "IdempotencyStore",
-    "IllegalTransition",
+    "IllegalTransitionError",
     "InMemoryIdempotencyStore",
     "InMemoryRunStore",
     "MCPApprovalChannel",

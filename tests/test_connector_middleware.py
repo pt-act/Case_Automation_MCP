@@ -2,13 +2,11 @@
 
 from __future__ import annotations
 
-import asyncio
-
 import httpx
 import pytest
 import respx
 
-from cam.connectors.errors import AuthError, FatalError, RateLimitError, TransientError
+from cam.connectors.errors import AuthError, FatalError, TransientError
 from cam.connectors.health import reset_health
 from cam.connectors.middleware import OutboundClient, RetryPolicy
 
@@ -32,7 +30,6 @@ def make_client(redis=None) -> OutboundClient:  # type: ignore[return]
 # a. Transient retried then succeeds
 @pytest.mark.asyncio
 async def test_transient_retried_then_succeeds() -> None:
-    call_count = 0
     with respx.mock(assert_all_called=False) as rx:
         rx.get("https://api.test/resource").mock(
             side_effect=[
@@ -87,7 +84,7 @@ async def test_open_circuit_fails_fast() -> None:
     with respx.mock(assert_all_called=False) as rx:
         rx.get("https://api.test/anything").mock(return_value=httpx.Response(200))
         client = make_client()
-        with pytest.raises(Exception):
+        with pytest.raises((FatalError, TransientError)):
             await client.request("GET", "https://api.test/anything")
         # The HTTP route must not have been called
         assert rx.calls.call_count == 0

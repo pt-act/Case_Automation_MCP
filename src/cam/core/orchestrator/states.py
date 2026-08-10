@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
-
 
 # ---------------------------------------------------------------------------
 # Status enums
@@ -59,7 +58,8 @@ _RUN_TRANSITIONS: dict[RunStatus, frozenset[RunStatus]] = {
 _STEP_TRANSITIONS: dict[StepStatus, frozenset[StepStatus]] = {
     StepStatus.PENDING: frozenset([StepStatus.RUNNING]),
     StepStatus.RUNNING: frozenset([StepStatus.SUCCEEDED, StepStatus.FAILED]),
-    StepStatus.FAILED: frozenset([StepStatus.RUNNING, StepStatus.COMPENSATED]),  # retry or compensate
+    StepStatus.FAILED: frozenset([StepStatus.RUNNING, StepStatus.COMPENSATED]),
+        # retry or compensate
     StepStatus.SUCCEEDED: frozenset([StepStatus.COMPENSATED]),
     StepStatus.COMPENSATED: frozenset(),
     StepStatus.SKIPPED: frozenset(),
@@ -179,8 +179,7 @@ class ApprovalToken(BaseModel):
 
     @property
     def is_expired(self) -> bool:
-        from datetime import timezone
-        return datetime.now(tz=timezone.utc) > self.expires_at
+        return datetime.now(tz=UTC) > self.expires_at
 
     @property
     def is_used(self) -> bool:

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from pydantic import ValidationError
@@ -17,11 +17,11 @@ from cam.core.domain.models import (
     Task,
 )
 
-NOW = datetime(2026, 6, 1, 12, 0, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 6, 1, 12, 0, 0, tzinfo=UTC)
 
 
 def make_contact(**kwargs) -> Contact:  # type: ignore[return]
-    defaults = dict(id="c1", source="crm", name="Ana Garcia", external_ids={})
+    defaults = {"id": "c1", "source": "crm", "name": "Ana Garcia", "external_ids": {}}
     return Contact(**(defaults | kwargs))
 
 

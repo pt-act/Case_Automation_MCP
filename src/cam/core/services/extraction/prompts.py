@@ -33,7 +33,8 @@ Return ONLY a JSON array of objects with this exact shape:
 
 ## Rules
 1. confidence MUST be a float in [0.0, 1.0].
-2. If a field is not present in the text, OMIT it from the array entirely (do NOT include it with null).
+2. If a field is not present in the text,
+    OMIT it from the array entirely (do NOT include it with null).
 3. Never fabricate values. If uncertain, lower the confidence; do not guess.
 4. raw_text must be the verbatim text you extracted the value from.
 5. Return ONLY the JSON array — no preamble, no explanation.

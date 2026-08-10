@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
 from cam.core.services.qc.registry import (
-    Check,
     CheckResult,
     QCConfig,
     Verdict,
@@ -19,12 +18,10 @@ from cam.core.services.qc.registry import (
     run_checks,
 )
 from cam.core.services.qc.types import (
+    FAIL_OR_PASS,
+    WARN_OR_FAIL_OR_PASS,
     Aggregate,
     CheckDescriptor,
-    FAIL_OR_PASS,
-    SkipReason,
-    WARN_OR_FAIL_OR_PASS,
-    SeverityPolicy,
 )
 
 
@@ -34,20 +31,20 @@ def _clear():
 
 
 def _packet(kind="generic"):
-    from cam.core.services.qc.packet import PacketKind, VerificationPacket
     from cam.core.domain.models import Contact, Matter
+    from cam.core.services.qc.packet import PacketKind, VerificationPacket
 
     contact = Contact(id="c1", source="crm", name="Ana Garcia", external_ids={})
     matter = Matter(
         id="m1", source="case", reference="REF-001", title="T",
-        status="open", client=contact, opened_at=datetime.now(tz=timezone.utc),
+        status="open", client=contact, opened_at=datetime.now(tz=UTC),
         external_ids={},
     )
     return VerificationPacket(
         packet_id="p1",
         kind=PacketKind(kind),
         matter=matter,
-        now=datetime.now(tz=timezone.utc),
+        now=datetime.now(tz=UTC),
     )
 
 
@@ -57,8 +54,16 @@ class _PassCheck:
     applies_to = None
     severity_policy = WARN_OR_FAIL_OR_PASS
     required_inputs = frozenset()
-    def describe(self): return CheckDescriptor(check_id=self.id, version=self.version, description="Always passes.")
-    def run(self, packet, cfg): return CheckResult(check_id=self.id, check_version=self.version, verdict=Verdict.PASS)
+    def describe(self):
+        return CheckDescriptor(
+            check_id=self.id, version=self.version,
+            description="Always passes.",
+        )
+    def run(self,
+        packet,
+        cfg): return CheckResult(check_id=self.id,
+        check_version=self.version,
+        verdict=Verdict.PASS)
 
 
 class _FailCheck:
@@ -67,8 +72,17 @@ class _FailCheck:
     applies_to = None
     severity_policy = WARN_OR_FAIL_OR_PASS
     required_inputs = frozenset()
-    def describe(self): return CheckDescriptor(check_id=self.id, version=self.version, description="Always fails.")
-    def run(self, packet, cfg): return CheckResult(check_id=self.id, check_version=self.version, verdict=Verdict.FAIL, reason="forced fail")
+    def describe(self):
+        return CheckDescriptor(
+            check_id=self.id, version=self.version,
+            description="Always fails.",
+        )
+    def run(self,
+        packet,
+        cfg): return CheckResult(check_id=self.id,
+        check_version=self.version,
+        verdict=Verdict.FAIL,
+        reason="forced fail")
 
 
 class _WarnCheck:
@@ -77,8 +91,17 @@ class _WarnCheck:
     applies_to = None
     severity_policy = WARN_OR_FAIL_OR_PASS
     required_inputs = frozenset()
-    def describe(self): return CheckDescriptor(check_id=self.id, version=self.version, description="Always warns.")
-    def run(self, packet, cfg): return CheckResult(check_id=self.id, check_version=self.version, verdict=Verdict.WARN, reason="forced warn")
+    def describe(self):
+        return CheckDescriptor(
+            check_id=self.id, version=self.version,
+            description="Always warns.",
+        )
+    def run(self,
+        packet,
+        cfg): return CheckResult(check_id=self.id,
+        check_version=self.version,
+        verdict=Verdict.WARN,
+        reason="forced warn")
 
 
 class _ErrorCheck:
@@ -87,7 +110,11 @@ class _ErrorCheck:
     applies_to = None
     severity_policy = WARN_OR_FAIL_OR_PASS
     required_inputs = frozenset()
-    def describe(self): return CheckDescriptor(check_id=self.id, version=self.version, description="Always errors.")
+    def describe(self):
+        return CheckDescriptor(
+            check_id=self.id, version=self.version,
+            description="Always errors.",
+        )
     def run(self, packet, cfg): raise RuntimeError("check exploded")
 
 
@@ -97,7 +124,11 @@ class _SlowCheck:
     applies_to = None
     severity_policy = WARN_OR_FAIL_OR_PASS
     required_inputs = frozenset()
-    def describe(self): return CheckDescriptor(check_id=self.id, version=self.version, description="Slow check.")
+    def describe(self):
+        return CheckDescriptor(
+            check_id=self.id, version=self.version,
+            description="Slow check.",
+        )
     def run(self, packet, cfg):
         time.sleep(2)  # exceeds 500ms timeout
         return CheckResult(check_id=self.id, check_version=self.version, verdict=Verdict.PASS)
@@ -110,8 +141,16 @@ class _PolicyViolatorCheck:
     applies_to = None
     severity_policy = FAIL_OR_PASS  # warns not allowed
     required_inputs = frozenset()
-    def describe(self): return CheckDescriptor(check_id=self.id, version=self.version, description="Violates policy.")
-    def run(self, packet, cfg): return CheckResult(check_id=self.id, check_version=self.version, verdict=Verdict.WARN)
+    def describe(self):
+        return CheckDescriptor(
+            check_id=self.id, version=self.version,
+            description="Violates policy.",
+        )
+    def run(self,
+        packet,
+        cfg): return CheckResult(check_id=self.id,
+        check_version=self.version,
+        verdict=Verdict.WARN)
 
 
 # a. Discovery finds a registered check

@@ -4,14 +4,13 @@ from __future__ import annotations
 
 import pytest
 
+from cam.connectors.errors import FatalError
 from cam.core.orchestrator.dsl import GateConfig, StepContext, clear_registry, workflow
 from cam.core.orchestrator.engine import WorkflowEngine
 from cam.core.orchestrator.idempotency import InMemoryIdempotencyStore
-from cam.core.orchestrator.states import RunStatus, StepStatus
+from cam.core.orchestrator.states import RunStatus
 from cam.core.orchestrator.store import InMemoryRunStore
 from cam.core.orchestrator.triggers import make_agent_trigger, start_run
-from cam.connectors.errors import FatalError, TransientError
-
 
 SIGNING_KEY = b"test-signing-key-32-bytes-padded"
 

@@ -23,7 +23,7 @@ async def dedupe_contact(
 
     Returns (DedupeResult, gaps) — ambiguous adds a blocking gap.
     """
-    cfg = config or get_intake_config().dedupe
+    config or get_intake_config().dedupe
     gaps: list[IntakeGap] = []
     candidates: list[Any] = []
 
@@ -64,7 +64,11 @@ async def dedupe_contact(
         ]
         if len(a_num_match) == 1:
             return DedupeResult(
-                contact_match=MatchRef(contact_id=a_num_match[0].id, source=a_num_match[0].source, score=1.0),
+                contact_match=MatchRef(
+                    contact_id=a_num_match[0].id,
+                    source=a_num_match[0].source,
+                    score=1.0,
+                ),
                 decision="reuse_contact",
                 score=1.0,
             ), gaps
@@ -73,7 +77,10 @@ async def dedupe_contact(
     if len(candidates) > 1:
         gaps.append(IntakeGap(
             field="contact_id",
-            reason=f"Found {len(candidates)} possible matching contacts — requires human disambiguation.",
+            reason=(
+                f"Found {len(candidates)} possible matching contacts "
+                f"— requires human disambiguation."
+            ),
             severity="block",
         ))
         return DedupeResult(decision="ambiguous", score=0.5), gaps
@@ -82,11 +89,18 @@ async def dedupe_contact(
     if candidates:
         gaps.append(IntakeGap(
             field="contact_id",
-            reason="Found a possible matching contact but confidence is insufficient for automatic merge.",
+            reason=(
+                "Found a possible matching contact but confidence "
+                "is insufficient for automatic merge."
+            ),
             severity="block",
         ))
         return DedupeResult(
-            contact_match=MatchRef(contact_id=candidates[0].id, source=candidates[0].source, score=0.6),
+            contact_match=MatchRef(
+                contact_id=candidates[0].id,
+                source=candidates[0].source,
+                score=0.6,
+            ),
             decision="ambiguous",
             score=0.6,
         ), gaps

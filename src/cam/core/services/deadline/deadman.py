@@ -7,7 +7,7 @@ prevent the monitor from detecting its own failure.  Staleness → safety incide
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import structlog
@@ -35,7 +35,7 @@ class DeadmanMonitor:
         """Perform one heartbeat check.  Returns True if healthy, False if stale."""
         try:
             last_beat = await self._scheduler.heartbeat()
-            age = (datetime.now(tz=timezone.utc) - last_beat).total_seconds()
+            age = (datetime.now(tz=UTC) - last_beat).total_seconds()
             if age > self._threshold:
                 await self._fire_alert(age)
                 return False

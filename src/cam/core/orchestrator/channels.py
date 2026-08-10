@@ -106,8 +106,9 @@ class EmailApprovalChannel:
 
         if self._email is not None:
             try:
-                from cam.core.domain.models import Communication
                 import uuid
+
+                from cam.core.domain.models import Communication
 
                 comm = Communication(
                     id=str(uuid.uuid4()),

@@ -19,30 +19,43 @@ from opentelemetry.sdk.metrics.export import (
     ConsoleMetricExporter,
     PeriodicExportingMetricReader,
 )
-from opentelemetry.sdk.resources import Resource, SERVICE_NAME
+from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 from opentelemetry.sdk.trace import SpanProcessor, TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter, SimpleSpanProcessor
+from opentelemetry.sdk.trace.export import (
+    BatchSpanProcessor,
+    SimpleSpanProcessor,
+)
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from prometheus_client import Counter
 
+from cam.packs.base import ENGINE_PII_BASELINE, PackSelectionError, active_pii_patterns
+
 # ---------------------------------------------------------------------------
-# PII patterns (configurable; immigration-specific)
+# PII patterns — composed as engine_baseline ∪ active-pack additions.
+#
+# The engine baseline floor (email/phone/SSN/DOB) is non-removable and lives in
+# `cam.packs.base.ENGINE_PII_BASELINE`. Domain-specific patterns (e.g. the
+# immigration pack's A-number + passport) are supplied by the active pack and
+# composed in by `configure_pii_patterns()` at startup (G6). Until a pack is
+# selected this falls back to the baseline floor — never less.
 # ---------------------------------------------------------------------------
 
-_DEFAULT_PII_PATTERNS: list[re.Pattern[str]] = [
-    re.compile(r"\bA\d{8,9}\b"),                      # A-number
-    re.compile(r"\b\d{3}-\d{2}-\d{4}\b"),             # SSN / ITIN
-    re.compile(r"\b[A-Z]{1,2}\d{6,9}\b"),             # Passport (simplified)
-    re.compile(r"\b\d{4}-\d{2}-\d{2}\b"),             # DOB in YYYY-MM-DD
-    re.compile(r"\b\d{2}/\d{2}/\d{4}\b"),             # DOB in MM/DD/YYYY
-    re.compile(
-        r"\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b"  # email
-    ),
-    re.compile(r"\b(\+?1[\s.-]?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}\b"),  # phone
-]
+_DEFAULT_PII_PATTERNS: list[re.Pattern[str]] = list(ENGINE_PII_BASELINE)
 
 _REDACTED = "[REDACTED]"
 _pii_patterns: list[re.Pattern[str]] = list(_DEFAULT_PII_PATTERNS)
+
+
+def configure_pii_patterns(pack: Any = None) -> None:
+    """Set the active redaction set to `engine baseline ∪ active-pack additions`.
+
+    Call at startup after the domain pack is selected. With no pack active, falls
+    back to the engine baseline floor (the floor is never removed)."""
+    global _pii_patterns
+    try:
+        _pii_patterns = active_pii_patterns(pack)
+    except PackSelectionError:
+        _pii_patterns = list(ENGINE_PII_BASELINE)
 
 # Prometheus counter for PII redactions
 _pii_redactions_total: Counter | None = None
@@ -131,7 +144,7 @@ class PIISpanProcessor(SpanProcessor):
         if not span.attributes:
             return
         clean = _scrub_dict(dict(span.attributes))
-        setattr(span, "_attributes", clean)
+        span._attributes = clean
 
     def shutdown(self) -> None:
         pass
@@ -230,7 +243,8 @@ def configure_observability(
         trace.set_tracer_provider(tracer_provider)
 
         # --- OpenTelemetry metrics ---
-        reader = PeriodicExportingMetricReader(ConsoleMetricExporter(), export_interval_millis=60_000)
+        reader = PeriodicExportingMetricReader(ConsoleMetricExporter(),
+            export_interval_millis=60_000)
         meter_provider = MeterProvider(resource=resource, metric_readers=[reader])
         metrics.set_meter_provider(meter_provider)
 
@@ -272,7 +286,7 @@ def start_workflow_span(
     workflow_name: str,
     run_id: str | None = None,
     step: str | None = None,
-) -> "trace.Span":
+) -> trace.Span:
     """Start a span for a workflow step, correlated by run_id.
 
     Usage::
@@ -290,7 +304,7 @@ def start_workflow_span(
     return span
 
 
-def trace_connector_call(connector: str, operation: str) -> "trace.Span":
+def trace_connector_call(connector: str, operation: str) -> trace.Span:
     """Start a span for a connector call — child of the active workflow span."""
     tracer = get_tracer(f"cam.connector.{connector}")
     return tracer.start_span(

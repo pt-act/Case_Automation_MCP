@@ -52,7 +52,7 @@ class PdfTextExtractor:
     def _extract_email_body(
         self, content: bytes
     ) -> tuple[dict[int, str], list[int], list[int]]:
-        text = content.decode("utf-8", errors="replace")
+        content.decode("utf-8", errors="replace")
         return {}, [], []  # total_pages=0 for email; handled by coverage builder
 
     def _extract_pdf(

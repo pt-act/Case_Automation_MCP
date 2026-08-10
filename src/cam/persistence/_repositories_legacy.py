@@ -5,8 +5,7 @@ Callers only see domain models; ORM objects stay internal (spec §4.2).
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Any, Generic, Literal, Protocol, TypeVar, cast
+from typing import Any, Literal, Protocol, TypeVar, cast
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession

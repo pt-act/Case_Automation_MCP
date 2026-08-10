@@ -8,7 +8,6 @@ from cam.core.services.extraction.errors import ProviderUnavailableError, Reside
 from cam.core.services.extraction.llm import MockLLMClient, ResidencyGuard, normalise_confidence
 from cam.core.services.extraction.types import (
     ExtractedField,
-    ExtractionSource,
     FieldMapping,
     MappingProfile,
 )
@@ -18,7 +17,8 @@ def _profile() -> MappingProfile:
     return MappingProfile(
         name="test",
         version="1.0",
-        fields=[FieldMapping(source_key="email", domain_key="contact.email", target_type="Contact")],
+        fields=[FieldMapping(source_key="email", domain_key="contact.email",
+            target_type="Contact")],
     )
 
 

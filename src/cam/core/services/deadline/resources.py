@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
-from typing import Any
+from datetime import UTC, datetime, timedelta
 
 from cam.core.services.deadline.rules import RuleStore
 from cam.core.services.deadline.schedule import DeadlineStore
@@ -41,7 +40,7 @@ def resource_calendar_upcoming(
     matter_id: str | None = None,
 ) -> dict:
     """calendar://upcoming — deadlines + pending reminders within window, ordered."""
-    now = datetime.now(tz=timezone.utc)
+    now = datetime.now(tz=UTC)
     cutoff = now + timedelta(days=window_days)
 
     items = []

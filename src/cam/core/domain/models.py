@@ -13,7 +13,6 @@ from typing import Literal
 
 from pydantic import BaseModel, EmailStr, Field
 
-
 # ---------------------------------------------------------------------------
 # Primary domain entities
 # ---------------------------------------------------------------------------
@@ -27,7 +26,8 @@ class Contact(BaseModel):
     name: str = Field(..., description="Full legal name.")
     email: EmailStr | None = Field(None, description="Primary email address.")
     phone: str | None = Field(None, description="Primary phone number.")
-    role: str | None = Field(None, description="Role in the firm's context, e.g. 'client', 'attorney'.")
+    role: str | None = Field(None, description="Role in the firm's "
+        "context, e.g. 'client', 'attorney'.")
     external_ids: dict[str, str] = Field(
         default_factory=dict,
         description="Cross-system identifiers, e.g. {'crm': '...', 'case': '...'}.",
@@ -55,12 +55,15 @@ class Matter(BaseModel):
     source: str = Field(..., description="System that owns this record.")
     reference: str = Field(..., description="Firm-assigned matter reference number.")
     title: str = Field(..., description="Short descriptive title.")
-    status: str = Field(..., description="Current matter status string (vendor-specific values normalised).")
-    practice_area: str | None = Field(None, description="Practice area, e.g. 'family-based', 'employment-based'.")
+    status: str = Field(..., description="Current matter status "
+        "string (vendor-specific values normalised).")
+    practice_area: str | None = Field(None, description="Practice area / case type "
+        "from the active domain pack.")
     client: Contact = Field(..., description="Primary client contact.")
     responsible: str | None = Field(None, description="Responsible attorney id or name.")
     opened_at: datetime = Field(..., description="UTC instant the matter was opened.")
-    key_dates: list[Deadline] = Field(default_factory=list, description="Tracked deadlines for this matter.")
+    key_dates: list[Deadline] = Field(default_factory=list, description="Tracked deadlines "
+        "for this matter.")
     external_ids: dict[str, str] = Field(
         default_factory=dict,
         description="Cross-system identifiers.",
@@ -79,17 +82,42 @@ class Document(BaseModel):
         None, description="Document class, e.g. 'engagement_letter', 'court_filing'."
     )
     version: int = Field(..., description="Monotonically increasing version counter.")
-    privileged: bool = Field(True, description="Attorney–client privilege flag.")
+    privileged: bool = Field(
+        True,
+        description=(
+            "Confidentiality flag — backing store for the canonical `restricted` "
+            "accessor. Labelled per the active domain pack's RestrictionPolicy "
+            "('Privileged' in the immigration pack, 'Client-Confidential' in "
+            "consulting). Defaults True (fail-safe)."
+        ),
+    )
     checksum: str = Field(..., description="SHA-256 hex digest of the stored bytes.")
     created_at: datetime = Field(..., description="UTC creation instant.")
+
+    @property
+    def restricted(self) -> bool:
+        """Canonical, domain-agnostic confidentiality flag.
+
+        Backed by the `privileged` field (same column — no migration; decision
+        D-6). `privileged` is retained as a permanent backward-compatible alias
+        (decision D-3). New code should prefer `restricted`; the confidentiality
+        gate keys on this value regardless of which name set it.
+        """
+        return self.privileged
+
+    @restricted.setter
+    def restricted(self, value: bool) -> None:
+        self.privileged = value
 
 
 class Communication(BaseModel):
     """An email or message, inbound or outbound."""
 
     id: str = Field(..., description="Internal canonical id.")
-    matter_id: str | None = Field(None, description="Associated matter (None before matter is created).")
-    direction: Literal["in", "out"] = Field(..., description="Message direction relative to the firm.")
+    matter_id: str | None = Field(None, description="Associated matter (None "
+        "before matter is created).")
+    direction: Literal["in", "out"] = Field(..., description="Message direction relative "
+        "to the firm.")
     channel: str = Field(..., description="Delivery channel, e.g. 'email'.")
     subject: str | None = Field(None, description="Message subject line.")
     body: str = Field(..., description="Message body text.")
@@ -125,10 +153,12 @@ class AuditRecord(BaseModel):
     action: str = Field(..., description="Action name, e.g. 'matter.create'.")
     inputs: dict = Field(default_factory=dict, description="PII-scrubbed action inputs (JSONB).")
     outputs: dict = Field(default_factory=dict, description="PII-scrubbed action outputs (JSONB).")
-    approval: dict | None = Field(None, description="Gate outcome if this action required approval.")
+    approval: dict | None = Field(None, description="Gate outcome if "
+        "this action required approval.")
     timestamp: datetime = Field(..., description="UTC server-sourced timestamp.")
     run_id: str | None = Field(None, description="Workflow run correlation id.")
-    prev_hash: str = Field(..., description="SHA-256 hex of the previous record (zeros for genesis).")
+    prev_hash: str = Field(..., description="SHA-256 hex of the "
+        "previous record (zeros for genesis).")
     record_hash: str = Field(..., description="SHA-256 hex of prev_hash + canonical(this record).")
 
 

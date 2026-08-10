@@ -66,7 +66,8 @@ class PrivilegeGate:
             return GateVerdict(verdict="fail", reason=reason)
 
         # Non-privileged document going externally — allowed
-        return GateVerdict(verdict="pass", reason="Non-privileged document; external routing allowed.")
+        return GateVerdict(verdict="pass",
+            reason="Non-privileged document; external routing allowed.")
 
     def _destination_is_external(self, destination: RoutingDestination) -> bool:
         """A folder destination is internal; a share/recipient route is external."""

@@ -2,19 +2,20 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
+from cam.connectors.reference import ReferenceDocStoreConnector
 from cam.core.domain.models import Contact, Matter
 from cam.core.services.qc.checks import register_all
 from cam.core.services.qc.registry import clear_registry as qc_clear
 from cam.core.workflows.document_gen.context import build_context, detect_gaps
-from cam.core.workflows.document_gen.renderer import GAP_TOKEN, checksum, render_docx
+from cam.core.workflows.document_gen.renderer import checksum, render_docx
 from cam.core.workflows.document_gen.template_store import (
-    TemplateNotFound,
+    TemplateNotFoundError,
     TemplateStore,
     TemplateValidationError,
     make_simple_template,
@@ -23,17 +24,18 @@ from cam.core.workflows.document_gen.tools import (
     tool_document_generate,
     tool_form_prefill,
 )
-from cam.core.workflows.document_gen.types import Gap, GenerationResult, TemplateSpec, TemplateVariable
+from cam.core.workflows.document_gen.types import (
+    Gap,
+    TemplateSpec,
+    TemplateVariable,
+)
 from cam.core.workflows.document_gen.version_store import (
     InMemoryVersionLedger,
-    VersionCollisionError,
     derive_idem_key,
     store_document,
 )
-from cam.connectors.reference import ReferenceDocStoreConnector
 
-
-NOW = datetime(2026, 6, 1, 12, 0, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 6, 1, 12, 0, 0, tzinfo=UTC)
 
 
 @pytest.fixture(autouse=True)
@@ -116,7 +118,7 @@ def test_template_store_known_name() -> None:
 
 def test_template_store_unknown_raises() -> None:
     store = TemplateStore()
-    with pytest.raises(TemplateNotFound):
+    with pytest.raises(TemplateNotFoundError):
         store.get("nonexistent")
 
 
@@ -180,7 +182,7 @@ def test_missing_required_produces_gap() -> None:
 
 def test_empty_required_produces_gap() -> None:
     spec = _spec("client.full_name")
-    matter = _matter()
+    _matter()
     ctx = {"client.full_name": "   "}
     gaps = detect_gaps(spec, ctx)
     assert gaps[0].reason == "empty"
@@ -267,8 +269,6 @@ async def test_store_round_trip() -> None:
     content = b"document content here"
     csum = checksum(content)
 
-    from cam.core.domain.models import Document
-    from datetime import datetime, timezone
 
     stored = await store_document(
         matter_id="m1", template_name="tpl", template_version=1,
@@ -410,7 +410,7 @@ async def test_prefill_unknown_form_raises() -> None:
     store = TemplateStore()
     ledger, docstore = _components()
     matter = _matter()
-    with pytest.raises(TemplateNotFound):
+    with pytest.raises(TemplateNotFoundError):
         await tool_form_prefill(
             matter=matter, form_id="UNKNOWN-999",
             template_store=store, ledger=ledger, docstore=docstore,
@@ -426,7 +426,7 @@ async def test_prefill_unknown_form_raises() -> None:
 def test_pbt_no_silent_blank(text: str) -> None:
     """A required var with None always produces a gap placeholder — never empty."""
     var = TemplateVariable(name="x", label="Field X", required=True, type="string")
-    spec = TemplateSpec(name="t", version=1, format="docx", variables=[var])
+    TemplateSpec(name="t", version=1, format="docx", variables=[var])
     gap = Gap(variable="x", label="Field X", reason="missing")
     template = b"{{ x }}"
     rendered = render_docx(template, {"x": None}, [gap])

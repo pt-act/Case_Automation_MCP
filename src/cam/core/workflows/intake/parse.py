@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from cam.core.services.extraction.types import ExtractInput, ExtractionProposal
+from cam.core.services.extraction.types import ExtractionProposal
 from cam.core.workflows.intake.config import IntakeConfig, get_intake_config
 from cam.core.workflows.intake.types import IntakeFields, IntakeGap, LeadPayload
 

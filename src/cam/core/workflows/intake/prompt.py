@@ -55,7 +55,7 @@ def render_intake_interview(
 
     gap_field_names = {g.field for g in ordered_gaps}
     collected: list[str] = []
-    for field_name, field_info in IntakeFields.model_fields.items():
+    for field_name, _field_info in IntakeFields.model_fields.items():
         if field_name in ("field_confidence",):
             continue
         value = getattr(fields, field_name, None)

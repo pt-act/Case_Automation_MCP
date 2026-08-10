@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Any
+from datetime import UTC, datetime
 
 import structlog
 
 from cam.core.domain.models import Deadline, Matter
-from cam.core.services.deadline.schedule import DeadlineStore, PastDueOnCreateError, Scheduler
 from cam.core.services.deadline.rules import RuleStore
+from cam.core.services.deadline.schedule import DeadlineStore, PastDueOnCreateError, Scheduler
 from cam.core.services.deadline.types import RuleRef
 from cam.core.workflows.intake.types import CaseTypeConfig, IntakeFields
 
@@ -32,7 +31,7 @@ async def compute_deadlines(
     is the workflow engine which handles ConnectorError/exceptions as park).
     No local date math — exclusively via deadline engine.
     """
-    now = now or datetime.now(tz=timezone.utc)
+    now = now or datetime.now(tz=UTC)
     result_deadlines: list[Deadline] = []
 
     # Use received_at from lead as the trigger date if available
@@ -46,7 +45,7 @@ async def compute_deadlines(
                 rule_version=rule_store.rule_version(rule_id),
                 jurisdiction="US",
             )
-            sd = await scheduler._arm if False else None  # type-check guard
+            await scheduler._arm if False else None  # type-check guard
             # schedule returns the ScheduledDeadline; if past-due it raises
             from cam.core.services.deadline.schedule import tool_deadline_schedule
             scheduled = await tool_deadline_schedule(

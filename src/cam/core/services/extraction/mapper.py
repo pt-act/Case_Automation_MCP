@@ -66,7 +66,6 @@ def apply_threshold(
     result = []
     for field in fields:
         below = field.confidence < threshold
-        flagged = field.requires_verification or below
         if below and not field.requires_verification:
             result.append(field.model_copy(update={"requires_verification": True}))
         else:

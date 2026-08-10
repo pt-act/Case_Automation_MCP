@@ -10,10 +10,9 @@ import hashlib
 import json
 from datetime import datetime
 from enum import StrEnum
-from typing import Any, Literal
+from typing import Any
 
 from pydantic import BaseModel, Field
-
 
 # ---------------------------------------------------------------------------
 # Core verdict / aggregate
@@ -53,7 +52,8 @@ class SeverityPolicy(BaseModel):
     """
 
     allowed: frozenset[Verdict] = Field(
-        default_factory=lambda: frozenset([Verdict.PASS, Verdict.WARN, Verdict.FAIL, Verdict.SKIPPED])
+        default_factory=lambda: frozenset([Verdict.PASS, Verdict.WARN, Verdict.FAIL,
+            Verdict.SKIPPED])
     )
 
     def allows(self, verdict: Verdict) -> bool:

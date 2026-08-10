@@ -7,13 +7,13 @@ A missed deadline raises a safety incident — never silent.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Protocol, runtime_checkable
 
 import structlog
 
 from cam.core.services.deadline.schedule import DeadlineStore, Scheduler
-from cam.core.services.deadline.types import EscalationLevel, ScheduledDeadline, ScheduledReminder
+from cam.core.services.deadline.types import ScheduledDeadline
 
 log = structlog.get_logger(__name__)
 
@@ -89,7 +89,8 @@ async def fire_reminder(
     recipients = _resolve_recipients(sd)
     await notification_port.notify(
         recipients=recipients,
-        payload={"deadline_id": deadline_id, "matter_id": sd.matter_id, "due_at": sd.trace.due_at.isoformat()},
+        payload={"deadline_id": deadline_id, "matter_id": sd.matter_id,
+            "due_at": sd.trace.due_at.isoformat()},
         idem_key=reminder_idem_key,
     )
 
@@ -106,7 +107,8 @@ async def fire_reminder(
     if audit_fn:
         try:
             await audit_fn(actor="deadline_engine", action="reminder.fired",
-                           inputs={"idem_key": reminder_idem_key}, outputs={"deadline_id": deadline_id})
+                           inputs={"idem_key": reminder_idem_key},
+                               outputs={"deadline_id": deadline_id})
         except Exception:
             pass
 
@@ -116,8 +118,7 @@ async def fire_reminder(
 
 def _resolve_recipients(sd: ScheduledDeadline) -> list[str]:
     """Resolve recipient roles for a reminder dispatch."""
-    lvl = sd.escalation_level
-    levels = sd.rule_ref.__dict__.get("escalation", None)
+    sd.rule_ref.__dict__.get("escalation", None)
     # Simple default: notify the case manager
     return [f"case_manager:{sd.matter_id}"]
 
@@ -143,7 +144,7 @@ async def escalate(
     updated = sd.model_copy(update={"escalation_level": max(sd.escalation_level, new_level)})
     store.save(updated)
 
-    now = datetime.now(tz=timezone.utc)
+    now = datetime.now(tz=UTC)
     if updated.trace.due_at < now:
         # Past due — safety incident
         log.error(

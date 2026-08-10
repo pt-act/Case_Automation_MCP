@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
-import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
@@ -12,9 +11,9 @@ from cam.core.domain.models import Communication, Contact, Deadline, Document, M
 from cam.core.services.qc.checks import (
     AttachmentIntegrityCheck,
     CompletenessCheck,
-    ExtractionConfidenceCheck,
     ConsistencyCheck,
     DeadlineSanityCheck,
+    ExtractionConfidenceCheck,
     PrivilegeCheck,
     RecipientIntegrityCheck,
 )
@@ -27,7 +26,7 @@ from cam.core.services.qc.packet import (
 )
 from cam.core.services.qc.types import Aggregate, CheckResult, QCConfig, Verdict
 
-NOW = datetime(2026, 6, 1, 12, 0, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 6, 1, 12, 0, 0, tzinfo=UTC)
 
 
 def _contact(id: str = "c1", name: str = "Ana Garcia") -> Contact:
@@ -42,7 +41,8 @@ def _matter(client: Contact | None = None) -> Matter:
     )
 
 
-def _doc(id: str = "d1", privileged: bool = False, checksum: str = "abc", version: int = 1) -> Document:
+def _doc(id: str = "d1", privileged: bool = False, checksum: str = "abc"
+    , version: int = 1) -> Document:
     return Document(
         id=id, matter_id="m1", name=f"{id}.pdf", mime_type="application/pdf",
         uri=f"s3://{id}", version=version, privileged=privileged,
@@ -51,9 +51,9 @@ def _doc(id: str = "d1", privileged: bool = False, checksum: str = "abc", versio
 
 
 def _packet(**kwargs) -> VerificationPacket:
-    defaults = dict(
-        packet_id="p1", kind=PacketKind.GENERIC, matter=_matter(), now=NOW,
-    )
+    defaults = {
+        "packet_id": "p1", "kind": PacketKind.GENERIC, "matter": _matter(), "now": NOW,
+    }
     return VerificationPacket(**(defaults | kwargs))
 
 
@@ -312,21 +312,24 @@ def test_deadline_skipped_no_deadlines() -> None:
 def test_confidence_pass() -> None:
     field = QCExtractedField(id="f1", name="email", confidence=0.95)
     p = _packet(extracted_fields=[field])
-    r = ExtractionConfidenceCheck().run(p, _cfg(extraction_warn_threshold=0.80, extraction_fail_floor=0.50))
+    r = ExtractionConfidenceCheck().run(p,
+        _cfg(extraction_warn_threshold=0.80, extraction_fail_floor=0.50))
     assert r.verdict == Verdict.PASS
 
 
 def test_confidence_warn_between_floor_and_threshold() -> None:
     field = QCExtractedField(id="f1", name="email", confidence=0.65)
     p = _packet(extracted_fields=[field])
-    r = ExtractionConfidenceCheck().run(p, _cfg(extraction_warn_threshold=0.80, extraction_fail_floor=0.50))
+    r = ExtractionConfidenceCheck().run(p,
+        _cfg(extraction_warn_threshold=0.80, extraction_fail_floor=0.50))
     assert r.verdict == Verdict.WARN
 
 
 def test_confidence_fail_below_floor() -> None:
     field = QCExtractedField(id="f1", name="email", confidence=0.30)
     p = _packet(extracted_fields=[field])
-    r = ExtractionConfidenceCheck().run(p, _cfg(extraction_warn_threshold=0.80, extraction_fail_floor=0.50))
+    r = ExtractionConfidenceCheck().run(p,
+        _cfg(extraction_warn_threshold=0.80, extraction_fail_floor=0.50))
     assert r.verdict == Verdict.FAIL
 
 

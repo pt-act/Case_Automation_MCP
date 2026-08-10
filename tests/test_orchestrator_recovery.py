@@ -12,7 +12,6 @@ from cam.core.orchestrator.states import RunStatus
 from cam.core.orchestrator.store import InMemoryRunStore
 from cam.core.orchestrator.triggers import make_agent_trigger, start_run
 
-
 KEY = b"test-signing-key-32-bytes-padded"
 
 

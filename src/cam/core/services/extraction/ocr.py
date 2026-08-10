@@ -7,7 +7,6 @@ Tesseract is optional: if not installed, the engine degrades gracefully
 
 from __future__ import annotations
 
-import io
 from typing import Protocol, runtime_checkable
 
 
@@ -43,7 +42,7 @@ class TesseractOcrEngine:
 
     def ocr(self, content: bytes, pages: list[int]) -> dict[int, tuple[str, float]]:
         if not self._available or not pages:
-            return {p: ("", 0.0) for p in pages}
+            return dict.fromkeys(pages, ("", 0.0))
         return self._run(content, pages)
 
     def _run(self, content: bytes, pages: list[int]) -> dict[int, tuple[str, float]]:
@@ -73,7 +72,7 @@ class TesseractOcrEngine:
                     results[page_num] = ("", 0.0)
             doc.close()
         except Exception:
-            results = {p: ("", 0.0) for p in pages}
+            results = dict.fromkeys(pages, ("", 0.0))
         return results
 
 
