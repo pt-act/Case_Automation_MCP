@@ -11,12 +11,14 @@ project:
     routing, and deadline tracking, with every action audited and reversible by
     default.
   created: 2026-05-30
-  status: planning
+  status: executing
   operator: human:RA
 
 # ---------------------------------------------------------------------------
-# specs — the DAG. Status is `planned` for all: the specifications exist
-# (specs/<id>/spec.md), but no implementation artifacts have been produced yet.
+# specs — the DAG. Status reflects implementation state:
+#   `implemented`  — code + tests landed and green
+#   `in_progress`  — core landed, hardening/refinement ongoing
+#   `planned`      — spec exists, implementation not started
 # `produces`/`consumes` are interface SUMMARIES; full contracts live in the
 # spec files. Cross-cutting reliance on platform-foundation config/observability
 # is captured by depends_on rather than enumerated as a data interface.
@@ -28,7 +30,12 @@ specs:
   - id: platform-foundation
     title: Platform foundation — domain model, persistence, audit, security baseline
     type: unit
-    status: planned
+    status: implemented
+    impl_note: >-
+      Domain model, persistence (SQLAlchemy 2 + Alembic), hash-chained audit,
+      AES-256-GCM crypto, RBAC, PII scrubber, 12-factor config + secret store
+      (env/SOPS+age/Vault/KMS). Phase 1.3 (SOPS+age) complete; PostgresRunStore
+      complete. 55 test functions. CI green.
     file: specs/platform-foundation/spec.md
     depends_on: []
     produces:
@@ -46,10 +53,40 @@ specs:
         consumers: [connector-framework, workflow-orchestration, qc-verification, data-extraction]
     consumes: []
 
+  - id: domain-packs
+    title: Domain packs — domain-agnostic config/policy bundle + reference packs
+    type: unit
+    status: implemented
+    impl_note: >-
+      G1-G7 complete. DomainPack contract, registry, fail-closed validation,
+      PII baseline composition, conformance harness, immigration + consulting
+      reference packs. G6 consumer rewiring complete (intake, deadline, routing,
+      QC restriction check read from active pack). Task 6.5 (RBAC role names +
+      status-update trigger allow-list pack wiring) deliberately descoped —
+      engine-neutral structure with no immigration value; deferred to CLI env
+      with full DB suite. 'No immigration value in core' guard (6.6) is a hard
+      assert. 26 test functions. CI green.
+    file: specs/domain-packs/spec.md
+    depends_on: [platform-foundation]
+    produces:
+      - name: domain_pack
+        shape: "DomainPack contract + registry + active-pack selection; Terminology; RestrictionPolicy (tighten-only); PII baseline-plus-additions; immigration + consulting reference packs"
+        consumers: [client-intake, deadline-engine, document-routing, qc-verification, status-update-emails]
+    consumes:
+      - name: domain_model
+        from: platform-foundation
+      - name: security_baseline
+        from: platform-foundation
+
   - id: connector-framework
     title: Connector framework — vendor-agnostic ports, webhooks, idempotency
     type: unit
-    status: planned
+    status: implemented
+    impl_note: >-
+      Ports (CaseConnector, CRMConnector, EmailConnector, DocStoreConnector),
+      typed error taxonomy, circuit breaker middleware with retry/jitter,
+      HMAC webhook pipeline, reference adapters. Vendor adapters deferred
+      pending firm confirmation (ADR-3). 51 test functions. CI green.
     file: specs/connector-framework/spec.md
     depends_on: [platform-foundation]
     produces:
@@ -82,7 +119,13 @@ specs:
   - id: workflow-orchestration
     title: Workflow orchestration — durable engine, gates, triggers
     type: unit
-    status: planned
+    status: implemented
+    impl_note: >-
+      Durable state-machine engine, @workflow DSL, run/step persistence,
+      idempotency, retry/compensation, parked runs, human-approval gates with
+      signed single-use tokens (3 channels: MCP/web/email), triggers, recovery
+      sweep. InMemoryRunStore (tests) + PostgresRunStore (production, Phase 1.2).
+      50 test functions. CI green.
     file: specs/workflow-orchestration/spec.md
     depends_on: [platform-foundation, connector-framework]
     produces:
@@ -117,7 +160,12 @@ specs:
   - id: data-extraction
     title: Data extraction — text + OCR + provider-agnostic LLM structuring
     type: unit
-    status: planned
+    status: implemented
+    impl_note: >-
+      Text extraction (pdfplumber/PyMuPDF), OCR (Tesseract), provider-agnostic
+      LLM structuring with per-field confidence, coverage analysis, residency
+      guard. Proposes only, never writes to system-of-record. 48 test functions.
+      CI green.
     file: specs/data-extraction/spec.md
     depends_on: [platform-foundation]
     produces:
@@ -133,9 +181,15 @@ specs:
   - id: qc-verification
     title: QC verification — composable check registry feeding gates
     type: unit
-    status: planned
+    status: implemented
+    impl_note: >-
+      Composable check registry (completeness, consistency, recipient integrity,
+      attachment integrity, privilege/restriction, deadline sanity, extraction
+      confidence), QC packet builder, MCP tool, severity-policy enforcement,
+      totality guarantee. Restriction check reads the active domain pack's
+      RestrictionPolicy (fail-closed, tighten-only). 49 test functions. CI green.
     file: specs/qc-verification/spec.md
-    depends_on: [platform-foundation, workflow-orchestration]
+    depends_on: [platform-foundation, workflow-orchestration, domain-packs]
     produces:
       - name: qc_verify
         shape: "MCP tool{qc.verify} runs checks{completeness, consistency, recipient_integrity, attachment_integrity, privilege, deadline_sanity, extraction_confidence} → pass|warn|fail; any fail blocks gate"
@@ -155,9 +209,15 @@ specs:
   - id: deadline-engine
     title: Deadline engine — rule sets, business-day calc, reminders, escalation
     type: unit
-    status: planned
+    status: implemented
+    impl_note: >-
+      Versioned rule sets (YAML), business-day calendar with holiday tables,
+      computation trace, scheduling with redundant reminders + escalation,
+      dead-man's-switch, reconciliation sweep. Liability-critical — never
+      silent-fail. Rules sourced from the active domain pack. 36 test functions.
+      CI green.
     file: specs/deadline-engine/spec.md
-    depends_on: [platform-foundation, connector-framework, workflow-orchestration]
+    depends_on: [platform-foundation, connector-framework, workflow-orchestration, domain-packs]
     produces:
       - name: deadline_compute
         shape: "MCP tool{deadline.compute} → business-day-adjusted due date from versioned rule set + ComputationTrace"
@@ -184,9 +244,14 @@ specs:
   - id: client-intake
     title: Client intake — lead to structured matter (composition)
     type: integration
-    status: planned
+    status: implemented
+    impl_note: >-
+      Lead parsing, contact dedupe (fuzzy + A-number), contact/matter creation,
+      deadline computation, opening tasks, gated welcome email. Case types,
+      dedupe config, and identifier patterns sourced from the active domain
+      pack. 29 test functions. CI green.
     file: specs/client-intake/spec.md
-    depends_on: [platform-foundation, connector-framework, workflow-orchestration, data-extraction, deadline-engine]
+    depends_on: [platform-foundation, connector-framework, workflow-orchestration, data-extraction, deadline-engine, domain-packs]
     produces:
       - name: intake_workflow
         shape: "MCP tool{intake.run} + prompt{intake_interview}: lead → contact + matter shell + opening tasks + drafted welcome (gated send)"
@@ -216,9 +281,13 @@ specs:
   - id: status-update-emails
     title: Status-update emails — change to drafted update to gated send (composition)
     type: integration
-    status: planned
+    status: implemented
+    impl_note: >-
+      Change detection, delta computation, tailored draft generation,
+      recipient-integrity QC, human-approval gate, idempotent send/log.
+      Deprecated service shims removed (Phase 1.5). 25 test functions. CI green.
     file: specs/status-update-emails/spec.md
-    depends_on: [platform-foundation, connector-framework, workflow-orchestration, qc-verification]
+    depends_on: [platform-foundation, connector-framework, workflow-orchestration, qc-verification, domain-packs]
     produces:
       - name: status_update_workflow
         shape: "workflow: status-change → tailored draft → recipient-integrity QC → approval gate → send/log; idempotent one-send-per-change"
@@ -242,7 +311,13 @@ specs:
   - id: document-generation
     title: Document generation — templates to versioned DOCX/PDF with QC
     type: unit
-    status: planned
+    status: implemented
+    impl_note: >-
+      Template store (versioned), DOCX rendering (docxtpl), gap detection
+      (never silent blanks), context builder, version store with checksums,
+      MCP tools (document.generate, form.prefill). PDF conversion is a
+      configurable stub awaiting engine confirmation (Phase 1.4). 36 test
+      functions. CI green.
     file: specs/document-generation/spec.md
     depends_on: [platform-foundation, connector-framework, qc-verification]
     produces:
@@ -260,9 +335,14 @@ specs:
   - id: document-routing
     title: Document routing — classify, name, file, permission (privilege-aware composition)
     type: integration
-    status: planned
+    status: implemented
+    impl_note: >-
+      Document classification, naming, ACL building, privilege-aware routing
+      gate (restricted docs never to external recipients). Document classes
+      and ACL map sourced from the active domain pack. 37 test functions.
+      CI green.
     file: specs/document-routing/spec.md
-    depends_on: [platform-foundation, connector-framework, qc-verification, data-extraction]
+    depends_on: [platform-foundation, connector-framework, qc-verification, data-extraction, domain-packs]
     produces:
       - name: document_route
         shape: "MCP tool{document.route} → classify, name, file, ACL; privilege-aware (privileged doc never routed to external recipient)"
@@ -284,20 +364,30 @@ specs:
 # ---------------------------------------------------------------------------
 milestones:
   - name: foundations            # PRD Phase 0
-    specs: [platform-foundation, connector-framework, workflow-orchestration]
-    status: not_started
+    specs: [platform-foundation, domain-packs, connector-framework, workflow-orchestration]
+    status: in_progress
+    note: >-
+      All 4 specs implemented. Phase 1 hardening: 1.5 (shim removal) ✅,
+      1.2 (PostgresRunStore) ✅, 1.3 (SOPS+age secret store) ✅. Remaining:
+      1.1 (vendor adapters — blocked on firm confirmation), 1.4 (PDF engine).
   - name: core-services          # engines consumed by workflows (PRD Wave 1–2)
     specs: [data-extraction, qc-verification, deadline-engine]
-    status: not_started
+    status: implemented
+    note: >-
+      All 3 engines implemented with tests. QC restriction check + deadline
+      rules read from the active domain pack.
   - name: workflows              # client-facing automations (PRD Wave 1–2)
     specs: [client-intake, status-update-emails, document-generation, document-routing]
-    status: not_started
+    status: implemented
+    note: >-
+      All 4 workflows implemented with tests. Intake + routing config sourced
+      from the active domain pack. PDF conversion stub remains (Phase 1.4).
 
 # ---------------------------------------------------------------------------
 # history — append-only audit trail. Never edit or delete past entries.
-# This manifest is the spec-architect decomposition output; project status is
-# `planning` and the manifest is NOT yet locked (awaiting operator review per
-# PROJECT_MANIFEST §D steps 6–7). Lock flips status to `executing`.
+# Project status flipped to `executing` on 2026-08-10 after all 11 specs
+# landed with passing CI (ruff, mypy --strict, bandit, pip-audit, tests on
+# Python 3.12+3.13 with Postgres 16). Phase 1 hardening in progress.
 # ---------------------------------------------------------------------------
 history:
   - timestamp: 2026-05-30T12:30:00Z
@@ -355,3 +445,57 @@ history:
     ref: document-routing
     by: spec-architect
     note: "integration; privilege-aware classify/file/permission"
+  - timestamp: 2026-06-25T11:30:00Z
+    event: spec_added
+    ref: domain-packs
+    by: spec-architect
+    note: >-
+      foundations unit; DomainPack contract + registry + reference packs
+      (immigration, consulting). Decision D-8: depended on by client-intake,
+      deadline-engine, document-routing, qc-verification, status-update-emails.
+  - timestamp: 2026-06-26T00:00:00Z
+    event: impl_note
+    ref: domain-packs
+    by: implementer
+    note: >-
+      Phase-A + partial G6 landed (commit "Domain Packs — Configure the engine
+      for any practice"): contract, registry/selection, fail-closed validation,
+      PII baseline composition, conformance harness, immigration + consulting
+      packs, cross-pack e2e. G6 consumer rewiring partial — deadline/routing/qc
+      read the active pack; intake is populated at startup but immigration
+      defaults remain in core; status-update + RBAC not yet pack-driven (6.5);
+      no-hardcoded-immigration sweep tracked as xfail (6.6).
+  - timestamp: 2026-08-10T14:35:00Z
+    event: status_changed
+    ref: project
+    by: operator:RA
+    note: >-
+      Project status changed from `planning` to `executing`. All 11 specs
+      implemented with 442+ test functions. CI fully green.
+  - timestamp: 2026-08-10T14:36:00Z
+    event: impl_complete
+    ref: domain-packs
+    by: implementer
+    note: >-
+      G1-G7 complete. All consumer rewiring done (intake, deadline, routing,
+      QC restriction). Task 6.5 (RBAC/status-update pack wiring) descoped —
+      engine-neutral, deferred to CLI env. 'No immigration in core' guard
+      is a hard assert. CI remediated: ruff 471→0, mypy 128→0, pip-audit
+      30 CVEs→0.
+  - timestamp: 2026-08-10T14:37:00Z
+    event: impl_complete
+    ref: qc-verification
+    by: implementer
+    note: >-
+      All 7 check types implemented (completeness, consistency, recipient,
+      attachment, privilege/restriction, deadline sanity, extraction
+      confidence). Registry with severity-policy enforcement + totality.
+      Restriction check reads active pack's RestrictionPolicy. 49 tests.
+  - timestamp: 2026-08-10T14:38:00Z
+    event: phase1_progress
+    ref: foundations
+    by: implementer
+    note: >-
+      Phase 1 hardening: 1.5 (deprecated shim removal) ✅, 1.2 (PostgresRunStore)
+      ✅, 1.3 (SOPS+age secret store) ✅. Remaining: 1.1 (vendor adapters,
+      blocked), 1.4 (PDF engine, lower priority).
