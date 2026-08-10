@@ -27,7 +27,7 @@ def register_all(clear: bool = False) -> None:
         clear_registry()
     for check in ALL_CHECKS:
         try:
-            register_check(check)
+            register_check(check)  # type: ignore
         except RuntimeError:
             pass  # already registered
 

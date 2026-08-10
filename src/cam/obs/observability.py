@@ -198,8 +198,8 @@ def configure_observability(
         structlog.configure(
             processors=[
                 structlog.contextvars.merge_contextvars,
-                _run_id_processor,
-                _pii_structlog_processor,
+                _run_id_processor,  # type: ignore
+                _pii_structlog_processor,  # type: ignore
                 structlog.stdlib.add_log_level,
                 # NOTE: add_logger_name removed — requires stdlib Logger; we use PrintLoggerFactory
                 structlog.processors.TimeStamper(fmt="iso"),

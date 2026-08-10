@@ -29,6 +29,7 @@ async def approval_page(raw_token: str, request: Request) -> HTMLResponse:
     if err:
         raise HTTPException(status_code=401, detail=f"Invalid token: {err}")
 
+    assert payload is not None  # verified above
     from datetime import datetime
 
     exp = payload.get("exp", 0)
@@ -76,12 +77,10 @@ async def submit_approval(
     # Support both form POST and query param
     if decision is None:
         form = await request.form()
-        decision_raw = form.get("decision")
-    decision = str(decision_raw) if decision_raw is not None else None
+        decision = form.get("decision")  # type: ignore[assignment]
     if decision not in ("approve", "reject"):
         raise HTTPException(status_code=400, detail="decision must be 'approve' or 'reject'.")
-    from typing import cast as _cast
-    _decision: Literal["approve", "reject"] = _cast(Literal["approve", "reject"], decision)
+    _decision: Literal["approve", "reject"] = decision
 
     actor = getattr(request.state, "user_identity", "web_anonymous")
 

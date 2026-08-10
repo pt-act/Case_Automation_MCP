@@ -5,6 +5,8 @@ Route: POST /webhooks/{connector}
 
 from __future__ import annotations
 
+from typing import Any
+
 from fastapi import APIRouter, HTTPException, Request, Response
 
 from cam.connectors.registry import get_normaliser, registered_connectors
@@ -52,7 +54,7 @@ async def ingest_webhook(connector_name: str, request: Request) -> Response:
         raw_body=raw_body,
         headers=headers,
         secret=secret,
-        normaliser=normaliser,  # caller must supply Callable[[str, dict], Event | None]
+        normaliser=normaliser,  # type: ignore[arg-type]
         trigger_sink=trigger_sink,
         redis_client=redis_client,
     )
@@ -74,7 +76,7 @@ async def ingest_webhook(connector_name: str, request: Request) -> Response:
     )
 
 
-def _noop_normaliser(connector: str, raw: dict) -> None:
+def _noop_normaliser(connector: str, raw: dict[str, Any]) -> None:
     return None
 
 

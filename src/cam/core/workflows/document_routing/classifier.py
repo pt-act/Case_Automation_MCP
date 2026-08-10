@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from cam.core.domain.models import Document
 from cam.core.workflows.document_routing.config import (
     DOCUMENT_CLASSES,
@@ -16,7 +18,7 @@ class Classifier:
     def classify(
         self,
         document: Document,
-        extraction_fields: list[dict] | None = None,
+        extraction_fields: list[dict[str, Any]] | None = None,
         config: RoutingConfig | None = None,
     ) -> tuple[str, float, str]:
         """Return (class_name, confidence, source).

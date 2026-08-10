@@ -7,6 +7,7 @@ alongside the domain tables from `cam/persistence/models.py`.
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import (
     DateTime,
@@ -30,9 +31,9 @@ class WorkflowRunORM(Base):
     workflow_version: Mapped[int] = mapped_column(Integer, nullable=False)
     status: Mapped[str] = mapped_column(String, nullable=False, default="queued")
     current_step: Mapped[str | None] = mapped_column(String, nullable=True)
-    trigger: Mapped[dict] = mapped_column(JSONB, nullable=False)
-    context: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
-    last_error: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    trigger: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    context: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict[str, Any])
+    last_error: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     dedupe_key: Mapped[str | None] = mapped_column(String, nullable=True, unique=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
@@ -53,9 +54,9 @@ class WorkflowStepStateORM(Base):
     status: Mapped[str] = mapped_column(String, nullable=False, default="pending")
     attempt: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     idem_key: Mapped[str] = mapped_column(String, nullable=False)
-    input: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
-    output: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
-    error: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    input: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    output: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    error: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
@@ -71,7 +72,7 @@ class GateRequestORM(Base):
     required_role: Mapped[str] = mapped_column(String, nullable=False)
     quorum: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     status: Mapped[str] = mapped_column(String, nullable=False, default="pending")
-    channels: Mapped[list] = mapped_column(JSONB, nullable=False)
+    channels: Mapped[list[Any]] = mapped_column(JSONB, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 

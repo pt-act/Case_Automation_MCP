@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from cam.core.services.qc.packet import VerificationPacket
 from cam.core.services.qc.types import (
     WARN_OR_FAIL_OR_PASS,
     CheckDescriptor,
@@ -27,7 +28,7 @@ class AttachmentIntegrityCheck:
             required_inputs=list(self.required_inputs),
         )
 
-    def run(self, packet, cfg: QCConfig) -> CheckResult:
+    def run(self, packet: VerificationPacket, cfg: QCConfig) -> CheckResult:
         if not packet.attachment_refs:
             return CheckResult(
                 check_id=self.id, check_version=self.version,

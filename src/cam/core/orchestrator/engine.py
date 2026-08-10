@@ -62,7 +62,7 @@ class WorkflowEngine:
         self,
         store: Any,
         idem_store: IdempotencyStore | None = None,
-        audit_fn: Callable | None = None,
+        audit_fn: Callable[..., Any] | None = None,
         signing_key: bytes = b"test-key-32-bytes-padded-0000000",
     ) -> None:
         self.store = store
@@ -89,7 +89,7 @@ class WorkflowEngine:
             s.step: s.output for s in steps if s.output is not None
         }
         # Track registered compensations for this execution pass
-        compensations: list[Callable] = []
+        compensations: list[Callable[..., Any]] = []
 
         for step_state in steps:
             if step_state.status in (StepStatus.SUCCEEDED, StepStatus.SKIPPED,
@@ -106,7 +106,7 @@ class WorkflowEngine:
                 await self._handle_gate(run, step_state, defn.gate_config(step_name))
                 result = await self.store.get_run(run_id)
                 assert result is not None
-                return result
+                return result  # type: ignore[no-any-return]
 
             # ── Normal step ────────────────────────────────────────────
             idem_key = step_state.idem_key
@@ -196,7 +196,7 @@ class WorkflowEngine:
                     await self._park(run_id, err, compensations)
                     parked = await self.store.get_run(run_id)
                     assert parked is not None
-                    return parked
+                    return parked  # type: ignore[no-any-return]
 
         # All steps completed
         await self.store.update_run_status(run_id, RunStatus.SUCCEEDED)
@@ -204,7 +204,7 @@ class WorkflowEngine:
         log.info("engine.run_succeeded", run_id=run_id)
         final = await self.store.get_run(run_id)
         assert final is not None
-        return final
+        return final  # type: ignore[no-any-return]
 
     async def _handle_gate(
         self,
@@ -264,7 +264,7 @@ class WorkflowEngine:
         self,
         run_id: str,
         err: StepError,
-        compensations: list[Callable],
+        compensations: list[Callable[..., Any]],
     ) -> None:
         # Run compensations in reverse order (best-effort, each idempotent)
         for fn in reversed(compensations):
@@ -277,7 +277,9 @@ class WorkflowEngine:
         await self._audit("run.parked", run_id, {"error": err.model_dump()}, {})
         log.warning("engine.run_parked", run_id=run_id, error=err.detail)
 
-    async def _audit(self, action: str, run_id: str, inputs: dict, outputs: dict) -> None:
+    async def _audit(
+        self, action: str, run_id: str, inputs: dict[str, Any], outputs: dict[str, Any]
+    ) -> None:
         if self.audit is None:
             return
         try:

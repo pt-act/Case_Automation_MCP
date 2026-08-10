@@ -7,6 +7,7 @@ objects — only domain models (spec §4.2).
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import (
     BigInteger,
@@ -39,7 +40,7 @@ class ContactORM(Base):
     email: Mapped[str | None] = mapped_column(String, nullable=True)
     phone: Mapped[str | None] = mapped_column(String, nullable=True)
     role: Mapped[str | None] = mapped_column(String, nullable=True)
-    external_ids: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    external_ids: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
 
     matters: Mapped[list[MatterORM]] = relationship(
         "MatterORM", back_populates="client_rel", foreign_keys="MatterORM.client_id"
@@ -63,7 +64,7 @@ class MatterORM(Base):
     client_id: Mapped[str] = mapped_column(ForeignKey("contacts.id"), nullable=False)
     responsible: Mapped[str | None] = mapped_column(String, nullable=True)
     opened_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    external_ids: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    external_ids: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
 
     client_rel: Mapped[ContactORM] = relationship(
         "ContactORM", back_populates="matters", foreign_keys=[client_id]
@@ -140,7 +141,7 @@ class CommunicationORM(Base):
     subject: Mapped[str | None] = mapped_column(String, nullable=True)
     body: Mapped[str] = mapped_column(Text, nullable=False)
     status: Mapped[str] = mapped_column(String, nullable=False)
-    participants: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    participants: Mapped[list[Any]] = mapped_column(JSONB, nullable=False, default=list[Any])
 
     matter_rel: Mapped[MatterORM | None] = relationship(
         "MatterORM", back_populates="communications"
@@ -176,9 +177,9 @@ class AuditLogORM(Base):
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     actor: Mapped[str] = mapped_column(String, nullable=False)
     action: Mapped[str] = mapped_column(String, nullable=False)
-    inputs: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
-    outputs: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
-    approval: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    inputs: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
+    outputs: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
+    approval: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     run_id: Mapped[str | None] = mapped_column(String, nullable=True)
     prev_hash: Mapped[str] = mapped_column(String(64), nullable=False)

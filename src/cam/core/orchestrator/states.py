@@ -144,7 +144,7 @@ class GateRequest(BaseModel):
     quorum: int = Field(1, description="N-of-M approvals required.")
     status: Literal["pending", "approved", "rejected", "expired"] = "pending"
     channels: list[Literal["mcp", "web", "email"]] = Field(
-        default_factory=lambda: ["mcp", "web", "email"]
+        default_factory=lambda: list[Literal["mcp", "web", "email"]](["mcp", "web", "email"])
     )
     created_at: datetime
     expires_at: datetime

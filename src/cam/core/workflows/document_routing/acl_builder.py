@@ -8,6 +8,7 @@ Empty allowed set → empty ACL (no default-open).
 from __future__ import annotations
 
 import json
+from typing import Any
 
 import structlog
 
@@ -17,7 +18,7 @@ from cam.core.workflows.document_routing.config import RoutingConfig, get_routin
 log = structlog.get_logger(__name__)
 
 
-def _parse_principals(external_ids: dict) -> set[str]:
+def _parse_principals(external_ids: dict[str, Any]) -> set[str]:
     """Parse the allowed_principals set from Matter.external_ids.
 
     Preferred encoding: JSON array in key ``allowed_principals_json``.

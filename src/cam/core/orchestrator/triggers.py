@@ -84,7 +84,7 @@ async def start_run(
     else:
         log.info("trigger.run_created", workflow=workflow_name, run_id=run_id, kind=trigger.kind)
 
-    return created
+    return created  # type: ignore[no-any-return]
 
 
 def make_event_trigger(event_id: str, source: str = "webhook") -> TriggerRef:

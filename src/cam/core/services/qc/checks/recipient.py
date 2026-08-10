@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from cam.core.services.qc.packet import VerificationPacket
 from cam.core.services.qc.types import (
     WARN_OR_FAIL_OR_PASS,
     CheckDescriptor,
@@ -26,7 +27,7 @@ class RecipientIntegrityCheck:
             required_inputs=list(self.required_inputs),
         )
 
-    def run(self, packet, cfg: QCConfig) -> CheckResult:
+    def run(self, packet: VerificationPacket, cfg: QCConfig) -> CheckResult:
         if not packet.intended_recipients:
             # On a send packet, empty recipients is a fail (nothing to verify → not a pass)
             return CheckResult(
@@ -36,8 +37,6 @@ class RecipientIntegrityCheck:
                 evidence={"packet_kind": packet.kind},
             )
 
-        participant_ids = {p.id for p in packet.matter.client.__class__.__mro__
-                          if False}  # placeholder — use direct list below
         # Build participant set from matter client + any explicit participant list
         participant_ids = {packet.matter.client.id} if packet.matter.client else set()
 

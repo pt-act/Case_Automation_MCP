@@ -90,7 +90,7 @@ class RoutingService:
         document: Document,
         matter: Matter,
         options: RouteOptions,
-        extraction_fields: list[dict] | None = None,
+        extraction_fields: list[dict[str, Any]] | None = None,
         recipient_id: str | None = None,
         run_id: str | None = None,
     ) -> RouteResult:

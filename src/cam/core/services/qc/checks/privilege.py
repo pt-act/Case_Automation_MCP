@@ -7,6 +7,7 @@ A privileged doc in an external-bound packet → fail, no exceptions.
 
 from __future__ import annotations
 
+from cam.core.services.qc.packet import VerificationPacket
 from cam.core.services.qc.types import (
     FAIL_OR_PASS,
     CheckDescriptor,
@@ -14,9 +15,10 @@ from cam.core.services.qc.types import (
     QCConfig,
     Verdict,
 )
+from cam.packs.base import RestrictionPolicy
 
 
-def _active_restriction():  # type: ignore[no-untyped-def]
+def _active_restriction() -> RestrictionPolicy | None:
     """Return the active domain pack's RestrictionPolicy, or None if no pack is
     active (the check then falls back to the immigration "Privileged" label and
     the engine-fixed fail-closed mechanics)."""
@@ -48,7 +50,7 @@ class PrivilegeCheck:
             severity_policy="fail_or_pass (never warn)",
         )
 
-    def run(self, packet, cfg: QCConfig) -> CheckResult:
+    def run(self, packet: VerificationPacket, cfg: QCConfig) -> CheckResult:
         # Determine effective external_bound — use stricter of caller claim vs re-derived
         caller_claim = packet.external_bound
         # Re-derive: any recipient not in matter participants → external

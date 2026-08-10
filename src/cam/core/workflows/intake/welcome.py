@@ -80,4 +80,4 @@ async def send_welcome(
     idem_key = f"{run_id}:send_welcome"
     message_id = await email_connector.send(draft_id, idem_key)
     log.info("intake.welcome_sent", message_id=message_id, run_id=run_id)
-    return message_id
+    return message_id  # type: ignore[no-any-return]

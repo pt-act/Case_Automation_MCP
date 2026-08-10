@@ -87,7 +87,7 @@ def register_intake_workflow(services: IntakeServices) -> None:
             )
         }
 
-        async def parse_lead(self, ctx: StepContext) -> dict:
+        async def parse_lead(self, ctx: StepContext) -> dict[str, Any]:
             cfg = svc.config or get_intake_config()
             lead_data = ctx.context.get("lead", {})
             case_type_hint = ctx.context.get("case_type_hint")
@@ -108,7 +108,7 @@ def register_intake_workflow(services: IntakeServices) -> None:
             fields, gaps = parse_lead(lead, proposal, case_type_hint, cfg)
             return {"fields": fields.model_dump(), "gaps": [g.model_dump() for g in gaps]}
 
-        async def dedupe_contact(self, ctx: StepContext) -> dict:
+        async def dedupe_contact(self, ctx: StepContext) -> dict[str, Any]:
             from cam.core.workflows.intake.dedupe import dedupe_contact
             from cam.core.workflows.intake.types import IntakeFields
             prior = ctx.output("parse_lead") or {}
@@ -116,7 +116,7 @@ def register_intake_workflow(services: IntakeServices) -> None:
             dedupe_result, gaps = await dedupe_contact(fields, svc.crm)
             return {"dedupe": dedupe_result.model_dump(), "gaps": [g.model_dump() for g in gaps]}
 
-        async def create_contact(self, ctx: StepContext) -> dict:
+        async def create_contact(self, ctx: StepContext) -> dict[str, Any]:
             from cam.core.workflows.intake.create import create_contact
             from cam.core.workflows.intake.types import DedupeResult, IntakeFields
             parse_out = ctx.output("parse_lead") or {}
@@ -126,7 +126,7 @@ def register_intake_workflow(services: IntakeServices) -> None:
             contact = await create_contact(fields, dedupe, svc.crm, ctx.run_id)
             return {"contact": contact.model_dump()}
 
-        async def create_matter(self, ctx: StepContext) -> dict:
+        async def create_matter(self, ctx: StepContext) -> dict[str, Any]:
             from cam.core.domain.models import Contact
             from cam.core.workflows.intake.create import create_matter
             from cam.core.workflows.intake.types import IntakeFields
@@ -139,7 +139,7 @@ def register_intake_workflow(services: IntakeServices) -> None:
             matter = await create_matter(fields, contact, case_cfg, svc.case_connector, ctx.run_id)
             return {"matter": matter.model_dump()}
 
-        async def compute_deadlines(self, ctx: StepContext) -> dict:
+        async def compute_deadlines(self, ctx: StepContext) -> dict[str, Any]:
             from cam.core.domain.models import Matter
             from cam.core.workflows.intake.deadlines import compute_deadlines
             from cam.core.workflows.intake.types import IntakeFields
@@ -155,7 +155,7 @@ def register_intake_workflow(services: IntakeServices) -> None:
             )
             return {"deadline_ids": [d.id for d in deadlines]}
 
-        async def open_tasks(self, ctx: StepContext) -> dict:
+        async def open_tasks(self, ctx: StepContext) -> dict[str, Any]:
             from cam.core.domain.models import Matter
             from cam.core.workflows.intake.tasks import render_tasks
             from cam.core.workflows.intake.types import IntakeFields
@@ -168,7 +168,7 @@ def register_intake_workflow(services: IntakeServices) -> None:
             tasks = render_tasks(matter.id, case_cfg, ctx.run_id)
             return {"task_ids": [t.id for t in tasks], "task_count": len(tasks)}
 
-        async def draft_welcome(self, ctx: StepContext) -> dict:
+        async def draft_welcome(self, ctx: StepContext) -> dict[str, Any]:
             from cam.core.domain.models import Contact, Matter
             from cam.core.workflows.intake.types import IntakeFields
             from cam.core.workflows.intake.welcome import draft_welcome
@@ -188,7 +188,7 @@ def register_intake_workflow(services: IntakeServices) -> None:
                 ctx.run_id)
             return {"draft_id": draft_id, "gaps": [g.model_dump() for g in gaps]}
 
-        async def send_welcome(self, ctx: StepContext) -> dict:
+        async def send_welcome(self, ctx: StepContext) -> dict[str, Any]:
             from cam.core.workflows.intake.welcome import send_welcome
             draft_out = ctx.output("draft_welcome") or {}
             draft_id = draft_out.get("draft_id", "")
@@ -207,7 +207,7 @@ async def tool_intake_run(
     case_type_hint: str | None = None,
     idempotency_key: str | None = None,
     actor: str = "agent_service",
-) -> dict:
+) -> dict[str, Any]:
     """intake.run — start or locate an intake workflow run.
 
     Idempotent: the same lead re-submitted returns the existing run.

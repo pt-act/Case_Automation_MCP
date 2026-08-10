@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from cam.core.services.qc.packet import VerificationPacket
 from cam.core.services.qc.types import (
     WARN_OR_FAIL_OR_PASS,
     CheckDescriptor,
@@ -29,7 +30,7 @@ class CompletenessCheck:
             severity_policy="warn_or_fail_or_pass",
         )
 
-    def run(self, packet, cfg: QCConfig) -> CheckResult:
+    def run(self, packet: VerificationPacket, cfg: QCConfig) -> CheckResult:
         missing_vars: list[str] = []
         missing_fields: list[str] = []
 

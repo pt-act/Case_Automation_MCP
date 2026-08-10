@@ -42,9 +42,9 @@ def _type_label(field_info: dict[str, Any]) -> str:
         types = [_type_label(t) for t in field_info["anyOf"]]
         return " | ".join(types)
     if "type" in field_info:
-        return field_info["type"]
+        return field_info["type"]  # type: ignore[no-any-return]
     if "$ref" in field_info:
-        return field_info["$ref"].split("/")[-1]
+        return field_info["$ref"].split("/")[-1]  # type: ignore[no-any-return]
     return "any"
 
 

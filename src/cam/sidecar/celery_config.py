@@ -7,6 +7,7 @@ Broker and result backend are both Redis, sourced from ``CAM_REDIS_URL``.
 from __future__ import annotations
 
 import os
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # Connection URLs
@@ -54,7 +55,7 @@ DEADMAN_CHECK_INTERVAL: int = int(os.environ.get("CAM_DEADMAN_INTERVAL", "60"))
 #: How often (seconds) the sweep-reconcile task fires.
 SWEEP_RECONCILE_INTERVAL: int = int(os.environ.get("CAM_SWEEP_RECONCILE_INTERVAL", "300"))
 
-beat_schedule: dict = {
+beat_schedule: dict[str, Any] = {
     "cam.deadline.deadman_check-periodic": {
         "task": "cam.deadline.deadman_check",
         "schedule": DEADMAN_CHECK_INTERVAL,
@@ -74,6 +75,6 @@ beat_schedule: dict = {
 # Routing (optional, kept for clarity)
 # ---------------------------------------------------------------------------
 
-task_routes: dict = {
+task_routes: dict[str, Any] = {
     "cam.deadline.*": {"queue": "cam_deadline"},
 }

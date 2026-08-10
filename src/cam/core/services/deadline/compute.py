@@ -102,7 +102,7 @@ def compute_due_date(
     )
 
 
-def preview_reminders(rule: DeadlineRule, due_at: datetime) -> list[dict]:
+def preview_reminders(rule: DeadlineRule, due_at: datetime) -> list[dict[str, Any]]:
     """Compute preview fire_at for each reminder offset."""
     cal = get_calendar(rule.calendar_id)
     previews = []
@@ -133,7 +133,7 @@ async def tool_deadline_compute(
     rule_ref: RuleRef | None = None,
     as_of: datetime | None = None,
     audit_fn: Any | None = None,
-) -> dict:
+) -> dict[str, Any]:
     """deadline.compute tool — pure read, no Deadline persisted.
 
     Returns: {due_at, trace, reminders_preview, past_due_flag}

@@ -109,14 +109,14 @@ def _make_in_memory_deps() -> tuple[Any, Any, Any]:
 # ---------------------------------------------------------------------------
 
 
-@app.task(
+@app.task(  # type: ignore[untyped-decorator]
     name="cam.deadline.fire_reminder",
     bind=True,
     max_retries=5,
     default_retry_delay=30,
     acks_late=True,
 )
-def task_fire_reminder(self: Any, deadline_id: str, reminder_idem_key: str) -> dict:
+def task_fire_reminder(self: Any, deadline_id: str, reminder_idem_key: str) -> dict[str, Any]:
     """Fire one deadline reminder.
 
     Idempotent: if the reminder was already fired (Redis dedup key set), the
@@ -184,14 +184,14 @@ async def _fire_reminder_async(
 # ---------------------------------------------------------------------------
 
 
-@app.task(
+@app.task(  # type: ignore[untyped-decorator]
     name="cam.deadline.escalate",
     bind=True,
     max_retries=3,
     default_retry_delay=60,
     acks_late=True,
 )
-def task_escalate(self: Any, deadline_id: str) -> dict:
+def task_escalate(self: Any, deadline_id: str) -> dict[str, Any]:
     """Advance the escalation level for a deadline and notify.
 
     Escalation is monotonically non-decreasing; calling this task twice for
@@ -256,14 +256,14 @@ async def _escalate_async(
 # ---------------------------------------------------------------------------
 
 
-@app.task(
+@app.task(  # type: ignore[untyped-decorator]
     name="cam.deadline.sweep_reconcile",
     bind=True,
     max_retries=2,
     default_retry_delay=120,
     acks_late=True,
 )
-def task_sweep_reconcile(self: Any, matter_ids: list[str]) -> dict:
+def task_sweep_reconcile(self: Any, matter_ids: list[str]) -> dict[str, Any]:
     """Reconcile deadline engine state against the case system for each matter.
 
     ConnectorError on individual matters is handled by ``Reconciler.reconcile``
@@ -321,13 +321,13 @@ async def _sweep_reconcile_async(*, matter_ids: list[str], store: Any) -> int:
 # ---------------------------------------------------------------------------
 
 
-@app.task(
+@app.task(  # type: ignore[untyped-decorator]
     name="cam.deadline.deadman_check",
     bind=True,
     max_retries=0,          # dead-man must never retry: a failed check IS the alert
     acks_late=True,
 )
-def task_deadman_check(self: Any) -> dict:
+def task_deadman_check(self: Any) -> dict[str, Any]:
     """Check scheduler liveness; alert if heartbeat is stale.
 
     Uses a ``CeleryScheduler`` instance as the scheduler under test.  Since
@@ -342,7 +342,7 @@ def task_deadman_check(self: Any) -> dict:
     """
     log.info("celery.task_deadman_check.start", task_id=self.request.id)
     try:
-        result: dict = _run(_deadman_check_async())
+        result: dict[str, Any] = _run(_deadman_check_async())
         log.info(
             "celery.task_deadman_check.done",
             healthy=result["healthy"],
@@ -356,7 +356,7 @@ def task_deadman_check(self: Any) -> dict:
         raise
 
 
-async def _deadman_check_async() -> dict:
+async def _deadman_check_async() -> dict[str, Any]:
     from cam.core.services.deadline.deadman import DeadmanMonitor
     from cam.sidecar.scheduler_celery import CeleryScheduler
 

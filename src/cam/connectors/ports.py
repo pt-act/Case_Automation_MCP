@@ -6,6 +6,11 @@ Workflows depend on these protocols only.  Concrete adapters live in
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from cam.connectors.webhook.models import Event
+
 from datetime import datetime
 from typing import Protocol, runtime_checkable
 
@@ -92,5 +97,5 @@ class DocStoreConnector(Protocol):
 class TriggerSink(Protocol):
     """Receives normalised Events and turns them into workflow run triggers."""
 
-    async def enqueue(self, event: Event) -> str: ...  # noqa: F821
+    async def enqueue(self, event: Event) -> str: ...
     """Returns an opaque trigger id.  Idempotent on event.id."""

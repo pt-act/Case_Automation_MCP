@@ -451,7 +451,7 @@ class AuditRepository:
 
     async def get_latest(self) -> AuditLogORM | None:
         stmt = select(AuditLogORM).order_by(AuditLogORM.id.desc()).limit(1)
-        return await self._session.scalar(stmt)
+        return await self._session.scalar(stmt)  # type: ignore[no-any-return]
 
     async def get_range(
         self, start_id: int | None = None, end_id: int | None = None

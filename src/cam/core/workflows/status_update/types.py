@@ -21,7 +21,7 @@ class MatterStatusDelta(BaseModel):
     change_id: str = Field(..., description="Stable, deterministic id for this transition.")
     source: Literal["webhook", "sweep", "manual"] = "webhook"
     detected_at: datetime
-    context: dict[str, Any] = Field(default_factory=dict)
+    context: dict[str, Any] = Field(default_factory=dict[str, Any])
 
 
 class StatusUpdateRunState(BaseModel):
@@ -31,5 +31,5 @@ class StatusUpdateRunState(BaseModel):
     delta: MatterStatusDelta
     draft_comm_id: str | None = None
     qc_result: str | None = None   # pass | warn | fail | skipped
-    approval: dict | None = None
+    approval: dict[str, Any] | None = None
     send_result: str | None = None  # message_id or error

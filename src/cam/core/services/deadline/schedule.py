@@ -49,7 +49,7 @@ class InMemoryScheduler:
     """Deterministic in-memory scheduler for tests."""
 
     def __init__(self) -> None:
-        self._arms: dict[str, dict] = {}
+        self._arms: dict[str, dict[str, Any]] = {}
         self._last_heartbeat: datetime = datetime.now(tz=UTC)
         self.stopped: bool = False
 

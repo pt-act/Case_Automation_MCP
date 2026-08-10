@@ -9,7 +9,7 @@ never hard-coded into these types (CONVENTIONS §5, §8).
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, EmailStr, Field
 
@@ -29,7 +29,7 @@ class Contact(BaseModel):
     role: str | None = Field(None, description="Role in the firm's "
         "context, e.g. 'client', 'attorney'.")
     external_ids: dict[str, str] = Field(
-        default_factory=dict,
+        default_factory=dict[str, Any],
         description="Cross-system identifiers, e.g. {'crm': '...', 'case': '...'}.",
     )
 
@@ -65,7 +65,7 @@ class Matter(BaseModel):
     key_dates: list[Deadline] = Field(default_factory=list, description="Tracked deadlines "
         "for this matter.")
     external_ids: dict[str, str] = Field(
-        default_factory=dict,
+        default_factory=dict[str, Any],
         description="Cross-system identifiers.",
     )
 
@@ -151,9 +151,13 @@ class AuditRecord(BaseModel):
     id: int = Field(..., description="Monotonic PK / sequence — defines chain order.")
     actor: str = Field(..., description="Identity that performed the action.")
     action: str = Field(..., description="Action name, e.g. 'matter.create'.")
-    inputs: dict = Field(default_factory=dict, description="PII-scrubbed action inputs (JSONB).")
-    outputs: dict = Field(default_factory=dict, description="PII-scrubbed action outputs (JSONB).")
-    approval: dict | None = Field(None, description="Gate outcome if "
+    inputs: dict[str, Any] = Field(
+        default_factory=dict, description="PII-scrubbed action inputs (JSONB)."
+    )
+    outputs: dict[str, Any] = Field(
+        default_factory=dict, description="PII-scrubbed action outputs (JSONB)."
+    )
+    approval: dict[str, Any] | None = Field(None, description="Gate outcome if "
         "this action required approval.")
     timestamp: datetime = Field(..., description="UTC server-sourced timestamp.")
     run_id: str | None = Field(None, description="Workflow run correlation id.")

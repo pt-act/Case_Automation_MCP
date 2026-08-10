@@ -141,7 +141,7 @@ def _parse_and_validate(yaml_content: str) -> DeadlineRule:
     """Parse YAML → DeadlineRule; raise RuleValidationError on any issue."""
     try:
         import yaml as _yaml
-        raw: dict = _yaml.safe_load(yaml_content)
+        raw: dict[str, Any] = _yaml.safe_load(yaml_content)
     except Exception as exc:
         raise RuleValidationError(None, f"YAML parse error: {exc}") from exc
 
@@ -169,8 +169,10 @@ def _parse_and_validate(yaml_content: str) -> DeadlineRule:
     reminders: list[ReminderOffset] = []
     for r in raw.get("reminders", []):
         try:
-            reminders.append(ReminderOffset(**r) if isinstance(r,
-                dict) else ReminderOffset(amount=r, unit="days"))
+            reminders.append(
+                ReminderOffset(**r) if isinstance(r, dict)
+                else ReminderOffset(amount=r, unit="days")
+            )
         except Exception as exc:
             raise RuleValidationError(rule_id, f"Invalid reminder: {exc}") from exc
 

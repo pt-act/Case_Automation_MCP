@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -28,8 +29,8 @@ class Event(BaseModel):
     matter_ref: str | None = Field(
         None, description="External matter id/ref if resolvable from payload."
     )
-    payload: dict = Field(
-        default_factory=dict,
+    payload: dict[str, Any] = Field(
+        default_factory=dict[str, Any],
         description="Normalised, PII-minimised projection — NOT the raw vendor blob.",
     )
     raw_ref: str | None = Field(

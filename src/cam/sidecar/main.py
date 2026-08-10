@@ -15,6 +15,7 @@ The MCP server (stdio/SSE) is a separate process; see concept/PTD.md §14.
 from __future__ import annotations
 
 import logging
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -34,7 +35,7 @@ log = structlog.get_logger(__name__)
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):  # noqa: ANN001
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Bootstrap services on startup; tear down on shutdown."""
     log.info("sidecar.starting")
 

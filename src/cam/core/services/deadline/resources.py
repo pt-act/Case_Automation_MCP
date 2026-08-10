@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from cam.core.services.deadline.rules import RuleStore
 from cam.core.services.deadline.schedule import DeadlineStore
 
 
-def resource_deadline_rules(rule_store: RuleStore, jurisdiction: str = "US") -> dict:
+def resource_deadline_rules(rule_store: RuleStore, jurisdiction: str = "US") -> dict[str, Any]:
     """deadline-rules://{jurisdiction} — tamper-evident; assumption_unconfirmed flags included."""
     rules = rule_store.all_rules(jurisdiction)
     return {
@@ -38,7 +39,7 @@ def resource_calendar_upcoming(
     deadline_store: DeadlineStore,
     window_days: int = 90,
     matter_id: str | None = None,
-) -> dict:
+) -> dict[str, Any]:
     """calendar://upcoming — deadlines + pending reminders within window, ordered."""
     now = datetime.now(tz=UTC)
     cutoff = now + timedelta(days=window_days)
@@ -62,7 +63,7 @@ def resource_calendar_upcoming(
                     "deadline_id": sd.deadline_id,
                     "matter_id": sd.matter_id,
                     "fire_at": rem.fire_at.isoformat(),
-                    "label": rem.offset.label,
+                    "label": rem.offset.label or "",
                 })
 
     items.sort(key=lambda x: x.get("due_at") or x.get("fire_at", ""))

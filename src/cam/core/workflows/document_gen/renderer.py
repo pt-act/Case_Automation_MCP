@@ -54,7 +54,7 @@ def render_docx(
         return _render_docxtpl(template_bytes, render_ctx)
 
     # Plain-text/HTML template (test path)
-    def _sub(m: re.Match) -> str:
+    def _sub(m: re.Match[str]) -> str:
         key = m.group(1)
         val = render_ctx.get(key)
         return str(val) if val is not None else ""

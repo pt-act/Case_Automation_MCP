@@ -41,7 +41,7 @@ async def create_contact(
             **({"a_number": fields.a_number} if fields.a_number else {}),
         },
     )
-    return await crm.upsert_contact(contact)
+    return await crm.upsert_contact(contact)  # type: ignore[no-any-return]
 
 
 async def create_matter(
@@ -66,4 +66,4 @@ async def create_matter(
     )
     matter = await case_connector.create_matter(draft)
     # Ensure privileged flag is set (immigration matters are privileged by default)
-    return matter
+    return matter  # type: ignore[no-any-return]

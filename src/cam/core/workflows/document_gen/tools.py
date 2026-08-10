@@ -273,7 +273,7 @@ async def tool_form_prefill(
     emit: Literal["fields_only", "document"] = "fields_only",
     run_id: str | None = None,
     audit_fn: Any | None = None,
-) -> dict:
+) -> dict[str, Any]:
     """form.prefill — risk tier read (fields_only) or write/confirm (document).
 
     Never fabricates values.  Unresolved fields become gaps. The supported

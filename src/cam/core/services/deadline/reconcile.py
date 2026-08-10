@@ -93,13 +93,13 @@ class Reconciler:
 
         # Missing in engine
         for case_d in case_deadlines:
-            rule_id = getattr(case_d, "rule_id", None)
-            in_engine = any(sd.rule_ref.rule_id == rule_id for sd in engine_deadlines.values())
-            if not in_engine and rule_id:
+            case_rule_id: str | None = getattr(case_d, "rule_id", None)
+            in_engine = any(sd.rule_ref.rule_id == case_rule_id for sd in engine_deadlines.values())
+            if not in_engine and case_rule_id:
                 findings.append(Drift(
                     matter_id=matter_id,
                     kind="missing_in_engine",
-                    detail=f"Case system has deadline with rule_id={rule_id!r} not in engine.",
+                    detail=f"Case system has deadline with rule_id={case_rule_id!r} not in engine.",
                     detected_at=now,
                 ))
 
@@ -112,14 +112,14 @@ class Reconciler:
         await self._maybe_audit("reconcile.complete", matter_id, {"drift_count": len(findings)})
         return findings
 
-    async def _maybe_alert(self, event: str, payload: dict) -> None:
+    async def _maybe_alert(self, event: str, payload: dict[str, Any]) -> None:
         if self._alert:
             try:
                 await self._alert(event=event, **payload)
             except Exception:
                 pass
 
-    async def _maybe_audit(self, action: str, matter_id: str, outputs: dict) -> None:
+    async def _maybe_audit(self, action: str, matter_id: str, outputs: dict[str, Any]) -> None:
         if self._audit:
             try:
                 await self._audit(

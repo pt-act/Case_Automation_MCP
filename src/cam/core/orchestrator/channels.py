@@ -142,7 +142,7 @@ async def emit_gate(
     """Emit the gate notification on every configured channel."""
     channel_map = {ch.name: ch for ch in channels}
     for channel_name, (raw_token, token_record) in tokens.items():
-        ch = channel_map.get(channel_name)
+        ch = channel_map.get(channel_name)  # type: ignore[call-overload]
         if ch is not None:
             try:
                 await ch.emit(gate, token_record, raw_token)

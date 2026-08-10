@@ -76,19 +76,19 @@ def register_status_update_workflow(services: StatusUpdateServices | None = None
             )
         }
 
-        async def detect_change(self, ctx: StepContext) -> dict:
+        async def detect_change(self, ctx: StepContext) -> dict[str, Any]:
             delta = MatterStatusDelta(**ctx.context.get("delta", {}))
             triggered = svc.status_store.should_trigger(delta.to_status, svc.config)
             return {"triggered": triggered, "change_id": delta.change_id,
                 "to_status": delta.to_status}
 
-        async def compute_delta(self, ctx: StepContext) -> dict:
+        async def compute_delta(self, ctx: StepContext) -> dict[str, Any]:
             delta = MatterStatusDelta(**ctx.context.get("delta", {}))
             svc.status_store.update_last_status(delta.matter_id, delta.to_status)
             return {"matter_id": delta.matter_id, "from_status": delta.from_status,
                     "to_status": delta.to_status}
 
-        async def resolve_recipients(self, ctx: StepContext) -> dict:
+        async def resolve_recipients(self, ctx: StepContext) -> dict[str, Any]:
             delta = MatterStatusDelta(**ctx.context.get("delta", {}))
             matter = await svc.case_connector.get_matter(delta.matter_id)
             from cam.core.workflows.status_update.draft import resolve_recipients
@@ -100,7 +100,7 @@ def register_status_update_workflow(services: StatusUpdateServices | None = None
                 "matter_ref": matter.reference,
             }
 
-        async def draft_email(self, ctx: StepContext) -> dict:
+        async def draft_email(self, ctx: StepContext) -> dict[str, Any]:
             delta = MatterStatusDelta(**ctx.context.get("delta", {}))
             matter = await svc.case_connector.get_matter(delta.matter_id)
             gaps = (ctx.output("resolve_recipients") or {}).get("gaps", [])
@@ -125,7 +125,7 @@ def register_status_update_workflow(services: StatusUpdateServices | None = None
                     pass
             return {"draft_id": draft_id, "prompt_version": prompt_ver, "blocked": False}
 
-        async def qc_recipient_integrity(self, ctx: StepContext) -> dict:
+        async def qc_recipient_integrity(self, ctx: StepContext) -> dict[str, Any]:
             delta = MatterStatusDelta(**ctx.context.get("delta", {}))
             matter = await svc.case_connector.get_matter(delta.matter_id)
             if (ctx.output("draft_email") or {}).get("blocked"):
@@ -144,7 +144,7 @@ def register_status_update_workflow(services: StatusUpdateServices | None = None
                     pass
             return {"qc_result": result}
 
-        async def send_email(self, ctx: StepContext) -> dict:
+        async def send_email(self, ctx: StepContext) -> dict[str, Any]:
             draft_out = ctx.output("draft_email") or {}
             qc_out = ctx.output("qc_recipient_integrity") or {}
             delta = MatterStatusDelta(**ctx.context.get("delta", {}))
@@ -169,7 +169,7 @@ def register_status_update_workflow(services: StatusUpdateServices | None = None
                 log.error("status_update.send_failed", error=str(exc), run_id=ctx.run_id)
                 raise
 
-        async def record_outcome(self, ctx: StepContext) -> dict:
+        async def record_outcome(self, ctx: StepContext) -> dict[str, Any]:
             send_out = ctx.output("send_email") or {}
             delta = MatterStatusDelta(**ctx.context.get("delta", {}))
             if send_out.get("sent"):
@@ -209,11 +209,11 @@ async def handle_status_change_event(
     provider_event_id: str,
     run_store: Any,
     services: StatusUpdateServices,
-) -> dict | None:
+) -> dict[str, Any] | None:
     """Start a status-update run from a webhook event.
 
     Returns None if the status is not allow-listed (skip).
-    Returns run summary dict if a run was started.
+    Returns run summary dict[str, Any] if a run was started.
     """
     if not services.status_store.should_trigger(to_status, services.config):
         log.info("status_update.skipped", matter_id=matter_id, to_status=to_status)
@@ -253,7 +253,7 @@ async def sweep_matters(
     matter_ids: list[str],
     run_store: Any,
     services: StatusUpdateServices,
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """Compare last-known vs current status for each matter; start runs on diffs."""
     results = []
     for matter_id in matter_ids:

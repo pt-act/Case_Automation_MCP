@@ -68,18 +68,18 @@ class StepContext:
         self.context = dict(context)          # immutable copy
         self._outputs = dict(step_outputs)
         self.idem_key = idem_key              # forwarded to connector calls
-        self._compensations: list[Callable] = []
+        self._compensations: list[Callable[..., Any]] = []
 
     def output(self, step_name: str) -> Any:
         """Return a prior step's output dict, or None if not yet run."""
         return self._outputs.get(step_name)
 
-    def compensate(self, fn: Callable) -> None:
+    def compensate(self, fn: Callable[..., Any]) -> None:
         """Register a compensation hook to be called if the run parks."""
         self._compensations.append(fn)
 
     @property
-    def compensations(self) -> list[Callable]:
+    def compensations(self) -> list[Callable[..., Any]]:
         return list(self._compensations)
 
 
@@ -93,7 +93,7 @@ class WorkflowDef:
     name: str
     version: int
     steps: list[str]
-    handlers: dict[str, Callable]   # step_name → bound method (non-gate)
+    handlers: dict[str, Callable[..., Any]]   # step_name → bound method (non-gate)
     gate_configs: dict[str, GateConfig]  # gate_name → config
     input_schema: type[BaseModel] | None
     cls: type
@@ -174,7 +174,7 @@ def workflow(
             raise ValueError(f"Workflow {name!r}: `steps` list is empty.")
 
         gate_configs: dict[str, GateConfig] = dict(getattr(cls, "gates", {}))
-        handlers: dict[str, Callable] = {}
+        handlers: dict[str, Callable[..., Any]] = {}
 
         instance = cls()  # instantiate to access bound methods for validation
 

@@ -26,7 +26,7 @@ log = structlog.get_logger(__name__)
 @runtime_checkable
 class NotificationPort(Protocol):
     async def notify(
-        self, recipients: list[str], payload: dict, idem_key: str
+        self, recipients: list[str], payload: dict[str, Any], idem_key: str
     ) -> str: ...
 
 
@@ -34,7 +34,7 @@ class MockNotificationPort:
     """Deterministic mock — records calls; injectable error for testing."""
 
     def __init__(self) -> None:
-        self.calls: list[dict] = []
+        self.calls: list[dict[str, Any]] = []
         self._fail: bool = False
         self._fail_count: int = 0
 
@@ -42,7 +42,7 @@ class MockNotificationPort:
         self._fail = True
         self._fail_count = count
 
-    async def notify(self, recipients: list[str], payload: dict, idem_key: str) -> str:
+    async def notify(self, recipients: list[str], payload: dict[str, Any], idem_key: str) -> str:
         if self._fail and self._fail_count > 0:
             self._fail_count -= 1
             if self._fail_count == 0:

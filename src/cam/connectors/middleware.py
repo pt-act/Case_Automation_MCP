@@ -56,11 +56,11 @@ def _idem_redis_key(connector: str, idem_key: str) -> str:
     return f"cam:idem:{connector}:{idem_key}"
 
 
-async def _idem_get(redis_client: Any, connector: str, idem_key: str) -> dict | None:
+async def _idem_get(redis_client: Any, connector: str, idem_key: str) -> dict[str, Any] | None:
     raw = await redis_client.get(_idem_redis_key(connector, idem_key))
     if raw is None:
         return None
-    return json.loads(raw)
+    return json.loads(raw)  # type: ignore[no-any-return]
 
 
 async def _idem_set(

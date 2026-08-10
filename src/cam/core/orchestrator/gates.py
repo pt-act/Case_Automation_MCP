@@ -122,8 +122,7 @@ class RunStore:
     async def get_gate_request(self, gate_id: str) -> GateRequest | None: ...
     async def update_gate_request(self, gate: GateRequest) -> None: ...
     async def get_token(self, token_id: str) -> ApprovalToken | None: ...
-    async def mark_token_used(self, token_id: str,
-        used_at: datetime) -> bool: ...  # True = first use
+    async def mark_token_used(self, token_id: str, used_at: datetime) -> bool: ...  # type: ignore[empty-body]
     async def save_approval_decision(self, decision: ApprovalDecision) -> None: ...
 
 
@@ -161,6 +160,7 @@ async def resolve_gate(
         await _maybe_audit(audit_fn, actor, "gate.token_verify_failed", {"reason": err})
         raise GateResolutionError(f"Token verification failed: {err}", 401)
 
+    assert payload is not None  # verified above
     token_id: str = payload["tid"]
     gate_request_id: str = payload["gid"]
     run_id: str = payload["rid"]
@@ -249,7 +249,7 @@ async def resolve_gate(
     return approval_decision
 
 
-async def _maybe_audit(audit_fn: Any, actor: str, action: str, inputs: dict) -> None:
+async def _maybe_audit(audit_fn: Any, actor: str, action: str, inputs: dict[str, Any]) -> None:
     if audit_fn is None:
         return
     try:

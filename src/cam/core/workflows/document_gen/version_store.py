@@ -30,7 +30,7 @@ class InMemoryVersionLedger:
     """
 
     def __init__(self) -> None:
-        self._versions: dict[tuple, int] = {}  # (matter_id, template_name, doc_key) → latest
+        self._versions: dict[tuple[Any, ...], int] = {}  # (matter_id, template, doc_key) → latest
         self._idem: dict[str, Document] = {}            # idem_key → stored Document
         self._idem_checksums: dict[str, str] = {}       # idem_key → checksum at store time
 
@@ -117,4 +117,4 @@ async def store_document(
         matter_id=matter_id,
         checksum=rendered_checksum[:12],
     )
-    return stored
+    return stored  # type: ignore[no-any-return]

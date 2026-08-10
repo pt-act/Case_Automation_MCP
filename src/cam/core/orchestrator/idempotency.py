@@ -105,6 +105,6 @@ class RedisIdempotencyStore:
         if raw == b"reserved" or raw == "reserved":
             return None  # reserved but not yet recorded (in-flight)
         try:
-            return json.loads(raw)
+            return json.loads(raw)  # type: ignore[no-any-return]
         except (json.JSONDecodeError, TypeError):
             return None

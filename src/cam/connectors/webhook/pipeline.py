@@ -113,7 +113,7 @@ async def process_webhook(
     raw_body: bytes,
     headers: dict[str, str],
     secret: str,
-    normaliser: Callable[[str, dict], Event | None],
+    normaliser: Callable[[str, dict[str, Any]], Event | None],
     trigger_sink: Any,  # TriggerSink protocol
     redis_client: Any,
 ) -> PipelineResult:
@@ -137,7 +137,7 @@ async def process_webhook(
 
     # 2. Parse raw body (JSON only for now)
     try:
-        raw_payload: dict = json.loads(raw_body)
+        raw_payload: dict[str, Any] = json.loads(raw_body)
     except (json.JSONDecodeError, ValueError):
         log.warning("webhook.malformed_body", connector=connector_name)
         return PipelineResult("rejected_bad_signature", reason="Malformed JSON body.")
@@ -185,7 +185,7 @@ async def process_webhook(
 # ---------------------------------------------------------------------------
 
 
-def reference_normaliser(connector: str, raw: dict) -> Event | None:
+def reference_normaliser(connector: str, raw: dict[str, Any]) -> Event | None:
     """Default normaliser for the in-memory reference connector.
     Recognises a small set of standard event types; all else → None.
     """

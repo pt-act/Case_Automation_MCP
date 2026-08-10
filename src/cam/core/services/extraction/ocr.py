@@ -58,7 +58,7 @@ class TesseractOcrEngine:
                     page = doc[page_num - 1]
                     mat = fitz.Matrix(2, 2)  # 2x zoom for better OCR
                     pix = page.get_pixmap(matrix=mat)
-                    img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+                    img = Image.frombytes("RGB", (pix.width, pix.height), pix.samples)
                     data = pytesseract.image_to_data(
                         img,
                         lang=self._langs,

@@ -13,10 +13,11 @@ import threading
 import time
 from collections.abc import Callable
 from datetime import UTC
-from typing import Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 import structlog
 
+from cam.core.services.qc.packet import VerificationPacket
 from cam.core.services.qc.types import (
     Aggregate,
     CheckDescriptor,
@@ -60,7 +61,7 @@ class Check(Protocol):
 
     def describe(self) -> CheckDescriptor: ...
 
-    def run(self, packet: VerificationPacket, cfg: QCConfig) -> CheckResult: ...  # noqa: F821
+    def run(self, packet: VerificationPacket, cfg: QCConfig) -> CheckResult: ...
 
 
 # ---------------------------------------------------------------------------
@@ -106,7 +107,7 @@ def clear_registry() -> None:
 
 
 def _run_with_timeout(
-    fn: Callable, timeout_ms: float
+    fn: Callable[..., Any], timeout_ms: float
 ) -> tuple[CheckResult | None, Exception | None]:
     """Run fn() in a thread; return (result, None) or (None, exc) on timeout/error."""
     result: list[CheckResult | None] = [None]
@@ -132,7 +133,7 @@ def _run_with_timeout(
 
 
 def run_checks(
-    packet: VerificationPacket,  # noqa: F821
+    packet: VerificationPacket,
     requested_ids: list[str] | None,
     cfg: QCConfig,
 ) -> QCReport:

@@ -69,7 +69,7 @@ def _communication_to_domain(orm: CommunicationORM) -> Communication:
 
 
 def _task_to_domain(orm: TaskORM) -> type:
-    return Task(
+    return Task(  # type: ignore
         id=orm.id, matter_id=orm.matter_id, title=orm.title,
         assignee=orm.assignee, due_at=orm.due_at, status=orm.status,
     )

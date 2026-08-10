@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import re
+from typing import Any
 
 from cam.core.workflows.document_gen.types import TemplateSpec
 
@@ -53,7 +54,7 @@ class TemplateStore:
         latest_version = max(versions)
         return versions[latest_version]
 
-    def resource_template(self, name: str) -> dict:
+    def resource_template(self, name: str) -> dict[str, Any]:
         """Return self-describing resource payload for template://{name}."""
         spec, _ = self.get(name)
         return {
