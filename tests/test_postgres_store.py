@@ -341,9 +341,19 @@ async def test_save_and_get_token(store, db_engine):
     await store.create_run(run, _make_steps(run.id))
 
     now = datetime.now(tz=UTC)
+    gate = GateRequest(
+        id="gate-token-test",
+        run_id=run.id,
+        step="GATE:approval",
+        required_role="attorney",
+        created_at=now,
+        expires_at=now,
+    )
+    await store.create_gate_request(gate)
+
     token = ApprovalToken(
         id=str(uuid.uuid4()),
-        gate_request_id="gate-1",
+        gate_request_id="gate-token-test",
         run_id=run.id,
         step="GATE:approval",
         key_id="test-key",
@@ -368,9 +378,19 @@ async def test_mark_token_used(store, db_engine):
     await store.create_run(run, _make_steps(run.id))
 
     now = datetime.now(tz=UTC)
+    gate = GateRequest(
+        id="gate-used-test",
+        run_id=run.id,
+        step="GATE:approval",
+        required_role="attorney",
+        created_at=now,
+        expires_at=now,
+    )
+    await store.create_gate_request(gate)
+
     token = ApprovalToken(
         id=str(uuid.uuid4()),
-        gate_request_id="gate-1",
+        gate_request_id="gate-used-test",
         run_id=run.id,
         step="GATE:approval",
         key_id="test-key",
@@ -398,8 +418,19 @@ async def test_save_approval_decision(store, db_engine):
     run = _make_run()
     await store.create_run(run, _make_steps(run.id))
 
+    now = datetime.now(tz=UTC)
+    gate = GateRequest(
+        id="gate-decision-test",
+        run_id=run.id,
+        step="GATE:approval",
+        required_role="attorney",
+        created_at=now,
+        expires_at=now,
+    )
+    await store.create_gate_request(gate)
+
     decision = ApprovalDecision(
-        gate_request_id="gate-1",
+        gate_request_id="gate-decision-test",
         run_id=run.id,
         step="GATE:approval",
         decision="approve",
