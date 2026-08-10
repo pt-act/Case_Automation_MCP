@@ -97,7 +97,7 @@ def _seed_data(database_url: str) -> None:
                     cols = ", ".join(row.keys())
                     vals = ", ".join(f":{k}" for k in row)
                     await conn.execute(
-                        text(f"INSERT INTO {table} ({cols}) VALUES ({vals})"),
+                        text(f"INSERT INTO {table} ({cols}) VALUES ({vals})"),  # nosec B608 — parameterized via :params
                         row,
                     )
                 typer.echo(f"  Seeded {len(data)} {table}")
@@ -204,7 +204,7 @@ def start(
             [
                 "uv", "run", "uvicorn",
                 "cam.sidecar.main:app",
-                "--host", "0.0.0.0",
+                "--host", "0.0.0.0",  # nosec B104 — intentional for Docker containers
                 "--port", str(port),
             ],
             cwd=_PROJECT_ROOT,
