@@ -7,12 +7,14 @@ from cam.config.settings import (
     SecretLoader,
     SecretNotFoundError,
     Settings,
+    SopsSecretLoader,
     VaultSecretLoader,
     build_secret_loader,
 )
 
 __all__ = [
     "EnvSecretLoader",
+    "SopsSecretLoader",
     "FeatureFlags",
     "KMSSecretLoader",
     "SecretLoader",

@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+import json
 from abc import abstractmethod
-from typing import Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -41,10 +42,20 @@ class Settings(BaseSettings):
     # Secret store backend
     secret_backend: str = Field(
         "env",
-        description="Secret loader backend: 'env' | 'vault' | 'kms'.",
+        description="Secret loader backend: 'env' | 'sops' | 'vault' | 'kms'.",
     )
     vault_addr: str | None = Field(None, description="Vault address (vault backend only).")
     vault_token: SecretStr | None = Field(None, description="Vault token (vault backend only).")
+
+    # SOPS + age settings (sops backend only)
+    sops_file_path: str | None = Field(
+        None,
+        description="Path to SOPS-encrypted secrets file (YAML or JSON).",
+    )
+    sops_age_key_file: str | None = Field(
+        None,
+        description="Path to age identity file for SOPS decryption.",
+    )
 
     # Encryption
     encryption_kek_secret_name: str = Field(
@@ -97,14 +108,16 @@ class Settings(BaseSettings):
     @field_validator("secret_backend")
     @classmethod
     def _valid_backend(cls, v: str) -> str:
-        if v not in {"env", "vault", "kms"}:
-            raise ValueError(f"secret_backend must be 'env', 'vault', or 'kms'; got '{v}'")
+        if v not in {"env", "sops", "vault", "kms"}:
+            raise ValueError(f"secret_backend must be 'env', 'sops', 'vault', or 'kms'; got '{v}'")
         return v
 
     @model_validator(mode="after")
     def _vault_requires_addr(self) -> Settings:
         if self.secret_backend == "vault" and not self.vault_addr:
             raise ValueError("vault_addr is required when secret_backend='vault'")
+        if self.secret_backend == "sops" and not self.sops_file_path:
+            raise ValueError("sops_file_path is required when secret_backend='sops'")
         return self
 
     def error_message_is_clean(self) -> bool:
@@ -170,6 +183,109 @@ class KMSSecretLoader:
         )
 
 
+class SopsSecretLoader:
+    """SOPS + age backend — reads secrets from a SOPS-encrypted file.
+
+    SOPS (Secrets OPerationS) encrypts individual values in YAML/JSON files
+    using `age` as the crypto backend.  This loader shells out to the `sops`
+    CLI to decrypt the file at startup, caches the result in memory, and
+    serves individual secrets by key.
+
+    Requirements:
+        - `sops` binary on PATH (install: `brew install sops` or download)
+        - `age` binary on PATH (install: `brew install age`)
+        - An age identity file (private key) for decryption
+        - A SOPS-encrypted file (YAML or JSON) with key→value pairs
+
+    The encrypted file is created like::
+
+        age-keygen -o age_identity.txt          # generate key pair
+        SOPS_AGE_KEY_FILE=age_identity.txt \
+            sops --encrypt --age $(age-keygen -y age_identity.txt) \
+            --in-place secrets.yaml
+
+    At runtime::
+
+        CAM_SECRET_BACKEND=sops
+        CAM_SOPS_FILE_PATH=/path/to/secrets.yaml
+        CAM_SOPS_AGE_KEY_FILE=/path/to/age_identity.txt
+    """
+
+    def __init__(self, file_path: str, age_key_file: str | None = None) -> None:
+        self._file_path = file_path
+        self._age_key_file = age_key_file
+        self._cache: dict[str, str] | None = None
+
+    def _decrypt(self) -> dict[str, str]:
+        """Decrypt the SOPS file and return a flat key→value mapping."""
+        import json
+        import subprocess
+
+        import yaml
+
+        env: dict[str, str] = {}
+        if self._age_key_file:
+            env["SOPS_AGE_KEY_FILE"] = self._age_key_file
+
+        result = subprocess.run(
+            ["sops", "--decrypt", self._file_path],
+            capture_output=True,
+            text=True,
+            env={**__import__("os").environ, **env},
+            timeout=30,
+        )
+        if result.returncode != 0:
+            raise RuntimeError(
+                f"sops decrypt failed (exit {result.returncode}): "
+                f"{result.stderr.strip()}"
+            )
+
+        decrypted = result.stdout
+        # Parse based on file extension
+        if self._file_path.endswith((".yaml", ".yml")):
+            data = yaml.safe_load(decrypted)
+        elif self._file_path.endswith(".json"):
+            data = json.loads(decrypted)
+        else:
+            # Try YAML first (superset of JSON), fall back to JSON
+            try:
+                data = yaml.safe_load(decrypted)
+            except Exception:
+                data = json.loads(decrypted)
+
+        if not isinstance(data, dict):
+            raise RuntimeError(
+                f"SOPS file {self._file_path!r} did not decrypt to a dict; "
+                f"got {type(data).__name__}"
+            )
+
+        # Flatten nested keys with dot notation: db.password → "db.password"
+        return _flatten(data)
+
+    def get_secret(self, name: str) -> str:
+        if self._cache is None:
+            self._cache = self._decrypt()
+        if name not in self._cache:
+            raise SecretNotFoundError(name)
+        return self._cache[name]
+
+
+def _flatten(d: dict[str, Any], prefix: str = "") -> dict[str, str]:
+    """Flatten a nested dict into dot-notation keys. Non-leaf values are stringified."""
+    out: dict[str, str] = {}
+    for k, v in d.items():
+        key = f"{prefix}.{k}" if prefix else str(k)
+        if isinstance(v, dict):
+            out.update(_flatten(v, key))
+        elif isinstance(v, (list, tuple)):
+            out[key] = json.dumps(v)
+        elif v is None:
+            out[key] = ""
+        else:
+            out[key] = str(v)
+    return out
+
+
 def build_secret_loader(settings: Settings) -> SecretLoader:
     """Instantiate the configured secret loader backend."""
     if settings.secret_backend == "vault":
@@ -181,6 +297,11 @@ def build_secret_loader(settings: Settings) -> SecretLoader:
         )
     if settings.secret_backend == "kms":
         return KMSSecretLoader()
+    if settings.secret_backend == "sops":
+        return SopsSecretLoader(
+            file_path=settings.sops_file_path,  # type: ignore[arg-type]
+            age_key_file=settings.sops_age_key_file,
+        )
     return EnvSecretLoader()
 
 
