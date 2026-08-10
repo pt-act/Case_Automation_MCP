@@ -1,0 +1,49 @@
+[
+  {
+    "id": "contact-001",
+    "source": "seed",
+    "name": "Jane Client",
+    "email": "jane.client@example.com",
+    "phone": "555-0101",
+    "role": "client",
+    "external_ids": {
+      "a_number": "A12345678"
+    }
+  },
+  {
+    "id": "contact-002",
+    "source": "seed",
+    "name": "John Client",
+    "email": "john.client@example.com",
+    "phone": "555-0102",
+    "role": "client",
+    "external_ids": {}
+  },
+  {
+    "id": "contact-003",
+    "source": "seed",
+    "name": "Maria Client",
+    "email": "maria.client@example.com",
+    "phone": "555-0103",
+    "role": "client",
+    "external_ids": {}
+  },
+  {
+    "id": "contact-004",
+    "source": "seed",
+    "name": "Sarah Attorney",
+    "email": "sarah.attorney@example.com",
+    "phone": "555-0201",
+    "role": "attorney",
+    "external_ids": {}
+  },
+  {
+    "id": "contact-005",
+    "source": "seed",
+    "name": "Tom Paralegal",
+    "email": "tom.paralegal@example.com",
+    "phone": "555-0202",
+    "role": "paralegal",
+    "external_ids": {}
+  }
+]

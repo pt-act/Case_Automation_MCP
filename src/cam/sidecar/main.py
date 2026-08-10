@@ -24,6 +24,7 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
 from cam.sidecar.approvals import router as approvals_router
+from cam.sidecar.pack_inspector import router as pack_inspector_router
 from cam.sidecar.webhooks import router as webhooks_router
 
 log = structlog.get_logger(__name__)
@@ -168,6 +169,7 @@ def create_app() -> FastAPI:
 
     application.include_router(webhooks_router)
     application.include_router(approvals_router)
+    application.include_router(pack_inspector_router)
 
     @application.get("/health", tags=["ops"])
     async def health() -> JSONResponse:

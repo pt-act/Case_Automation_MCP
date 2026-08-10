@@ -1,0 +1,24 @@
+# {name_title} Connector
+
+## Connection Checklist
+
+- [ ] API documentation: TODO (add link)
+- [ ] Authentication: TODO (OAuth 2.0 / API key / Basic)
+- [ ] Base URL: TODO
+- [ ] Rate limits: TODO
+- [ ] Webhook format: TODO (if applicable)
+
+## Implementation Steps
+
+1. Fill in `client.py` — authenticated HTTP client
+2. Implement the Connector protocol in `adapter.py`
+3. Test with `uv run pytest tests/test_{name}_contract.py`
+4. Register in `src/cam/connectors/registry.py`
+
+## Contract Tests
+
+Run the contract harness against your adapter:
+
+```bash
+uv run pytest tests/test_{name}_contract.py
+```

@@ -332,3 +332,8 @@ def reset_registry() -> None:
     global _ACTIVE
     _REGISTRY.clear()
     _ACTIVE = None
+
+
+def list_registered_pack_names() -> list[str]:
+    """Return sorted list of registered pack names."""
+    return sorted(_REGISTRY.keys())

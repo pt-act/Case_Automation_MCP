@@ -1,0 +1,20 @@
+[
+  {
+    "id": "deadline-001",
+    "matter_id": "matter-001",
+    "name": "USCIS Response Deadline",
+    "due_at": "2026-12-01T17:00:00+00:00",
+    "rule_id": "uscis-rfe",
+    "status": "active",
+    "escalation_level": 0
+  },
+  {
+    "id": "deadline-002",
+    "matter_id": "matter-002",
+    "name": "Priority Date Filing",
+    "due_at": "2026-10-15T17:00:00+00:00",
+    "rule_id": "uscis-i130",
+    "status": "active",
+    "escalation_level": 0
+  }
+]

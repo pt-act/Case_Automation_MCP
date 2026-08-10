@@ -1,0 +1,33 @@
+"""Authenticated HTTP client for {name}.
+
+TODO: Implement authentication (OAuth 2.0, API key, etc.)
+TODO: Set the base URL for the {name} API.
+"""
+
+from __future__ import annotations
+
+import httpx
+
+
+class {name_title}Client:
+    """HTTP client for the {name} API.
+
+    TODO: Implement authentication and base URL.
+    """
+
+    def __init__(self, base_url: str, token: str) -> None:
+        self._client = httpx.AsyncClient(
+            base_url=base_url,
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+    async def get(self, path: str) -> dict:
+        # TODO: Implement
+        raise NotImplementedError
+
+    async def post(self, path: str, json: dict) -> dict:
+        # TODO: Implement
+        raise NotImplementedError
+
+    async def close(self) -> None:
+        await self._client.aclose()

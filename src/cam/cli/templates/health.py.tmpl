@@ -1,0 +1,10 @@
+"""Health check for the {name} connector."""
+
+from __future__ import annotations
+
+from cam.connectors.health import ConnectorHealth, get_health
+
+
+def get_{name}_health() -> ConnectorHealth:
+    """Get or create the circuit breaker for {name}."""
+    return get_health("{name}")

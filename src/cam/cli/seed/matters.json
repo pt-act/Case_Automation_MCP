@@ -1,0 +1,38 @@
+[
+  {
+    "id": "matter-001",
+    "source": "seed",
+    "reference": "FAM-2026-001",
+    "title": "I-130 Family Petition",
+    "status": "open",
+    "practice_area": "family-based",
+    "client_id": "contact-001",
+    "responsible": "Sarah Attorney",
+    "opened_at": "2026-08-01T10:00:00+00:00",
+    "external_ids": {}
+  },
+  {
+    "id": "matter-002",
+    "source": "seed",
+    "reference": "EMP-2026-002",
+    "title": "EB-1 Extraordinary Ability",
+    "status": "open",
+    "practice_area": "employment-based",
+    "client_id": "contact-002",
+    "responsible": "Sarah Attorney",
+    "opened_at": "2026-08-05T14:00:00+00:00",
+    "external_ids": {}
+  },
+  {
+    "id": "matter-003",
+    "source": "seed",
+    "reference": "OTH-2026-003",
+    "title": "Citizenship Application",
+    "status": "open",
+    "practice_area": "other",
+    "client_id": "contact-003",
+    "responsible": "Sarah Attorney",
+    "opened_at": "2026-08-08T09:00:00+00:00",
+    "external_ids": {}
+  }
+]
