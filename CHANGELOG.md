@@ -10,6 +10,24 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 ## [Unreleased]
 
 ### Added
+- **`casemat` CLI** (`src/cam/cli/`) — zero-friction local bootstrap:
+  - `casemat start [--domain <pack>]` — spins up Postgres + Redis (docker-compose), runs Alembic migrations, seeds sample data (5 contacts, 3 matters, 2 deadlines), validates the domain pack (refuses to serve on invalid — NFR-9), starts the sidecar, opens the browser
+  - `casemat init --connector <type>` — scaffolds a connector adapter from templates (client.py, adapter.py, health.py, README.md, contract test stub)
+  - `casemat status` — shows running/stopped for Postgres, Redis, Sidecar
+  - `casemat stop` — tears down docker-compose services
+  - `casemat` console_scripts entrypoint (install with `uv sync --extra dev`)
+- **Pack inspector endpoint** (`src/cam/sidecar/pack_inspector.py`):
+  - `GET /packs` — lists all registered domain packs with name, version, description, `is_active` flag
+  - `GET /packs/{name}/inspect` — returns the resolved configuration: terminology, case types, deadline rules (count + IDs), document classes, restriction policy (label + default_restricted + predicate count), RBAC roles, PII pattern counts (labels only, never regex strings), feature flags
+  - Unknown pack → 404 with registered pack names list
+  - Makes the tighten-only restriction policy and PII floor observable at runtime
+- **Phase 2.1: Distributed run locking** (`src/cam/core/orchestrator/locking.py`) — `RunLock` via Redis SETNX prevents concurrent execution of the same workflow run across Celery workers. TTL-based auto-expiry (300s). Degrades to no-op when Redis unavailable.
+- **Phase 2.2: Redis-backed circuit breaker** (`src/cam/connectors/redis_health.py`) — `RedisConnectorHealth` extends `ConnectorHealth` with Redis-backed distributed circuit state. `is_open` checks Redis flag across workers. Async variants for async middleware. Degrades to in-process behavior when Redis unavailable.
+- **Deployment wiring** — PostgresRunStore wired into sidecar lifespan (falls back to InMemoryRunStore). Celery tasks use `_make_production_deps()` when `CAM_DATABASE_URL` is set. `Dockerfile` (multi-stage, Python 3.12-slim, WeasyPrint deps, healthcheck). `docker-compose.yml` (Postgres 16, Redis 7, sidecar, Celery worker, beat).
+- **5 new feature specs** in `.agents/specs/`: casemat-cli (mini), pack-inspector (mini), chaos-runner (full 4-phase), replay-harness (mini), run-timeline (mini). New `tooling` milestone in manifest.yml.
+- `list_registered_pack_names()` — public API in `cam.packs` for querying registered pack names
+- `typer>=0.12` — CLI framework dependency
+
 - **Domain packs** (`src/cam/packs/`) — domain-agnostic configuration seam so the engine can run any practice, not just immigration:
   - `DomainPack` contract + `Terminology` + tighten-only `RestrictionPolicy`; immutable (frozen) pack fields
   - Pack registry with single-active-pack selection, `CAM_DOMAIN_PACK` config wiring, optional `cam.packs` entry-point plugin loading, and fail-closed load-time validation (refuse to serve on an invalid/unknown pack)
@@ -35,6 +53,16 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 - `cam.sidecar.main` — FastAPI app factory with webhook and approval routers wired; health endpoint; startup/shutdown hooks
 
 ### Changed
+- `manifest.yml` — project status `planning` → `executing`; all 11 original specs marked `implemented` with `impl_note`; 5 new specs added (`planned`); new `tooling` milestone; `spec_level` field (full/mini); 22 history entries
+- `WorkflowEngine.execute()` — acquires `RunLock` before executing, delegates to `_execute()` (internal), releases lock in `finally`. Skips run if lock held by another worker.
+- `src/cam/sidecar/main.py` — wired PostgresRunStore + pack inspector router
+- `src/cam/sidecar/celery_app.py` — `_make_deps()` dispatcher chooses production/in-memory deps based on `CAM_DATABASE_URL`
+- `src/cam/packs/base.py` — added `list_registered_pack_names()` public function
+- `pyproject.toml` — added `typer>=0.12` dependency, `casemat` console_scripts entrypoint, `[project.optional-dependencies.pdf]` for WeasyPrint
+- `.env.example` — added `CAM_PDF_ENGINE` documentation (auto/libreoffice/weasyprint/none)
+- ADR-4: updated from "configurable stub" to "implemented (LibreOffice + WeasyPrint, auto-detect)"
+- ADR-13: recorded — Secret store = SOPS + age (or .env gitignored for dev)
+
 - `observability.py` — removed `structlog.stdlib.add_logger_name` processor (incompatible with `PrintLoggerFactory`; caused 91 test failures in full-suite runs)
 - `tests/conftest.py` — added `_reset_global_singletons` autouse fixture to prevent state leakage between test files; also runs the entire suite under the immigration pack (parity net)
 - `connectors/middleware.py` — replaced `random.uniform` with `secrets.SystemRandom().uniform` in jitter backoff (Bandit B311)
@@ -69,6 +97,16 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 - `docs/domain_model.md` — regenerated to reflect `Document.restricted` canonical field and domain-agnostic entity descriptions
 
 ### Fixed
+- **CI: all 6 jobs green** (was 4/6 failing):
+  - **ruff check** — 471 lint errors → 0
+  - **mypy --strict** — 128 type errors → 0
+  - **Security scan** — bandit not found → installed; pip-audit 30 CVEs → 0
+  - **Tests** — `ModuleNotFoundError: No module named 'tests'` → fixed by creating `tests/__init__.py`
+  - **Schema drift** — `docs/domain_model.md` out of sync → regenerated
+  - **Pack docs** — missing `PACK.md` files → added for immigration and consulting
+- Bandit SAST B608 (SQL injection in seed data) and B104 (0.0.0.0 binding) — suppressed with `# nosec` (parameterized SQL, intentional Docker binding)
+- Deprecated service shims removed: `configure_services()`, `get_services()`, `configure_status_update_services()`, `_services` globals (Phase 1.5)
+
 - Test suite now 403/403 passing when run in file-alphabetical order (was 312/403 before the structlog + singleton fixes)
 - Asyncio warning count reduced from 115 to 0 in test runs
 - **CI: all 6 jobs green** (was 4/6 failing):
