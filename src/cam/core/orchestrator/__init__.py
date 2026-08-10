@@ -10,6 +10,7 @@ from cam.core.orchestrator.dsl import GateConfig, StepContext, WorkflowDef, work
 from cam.core.orchestrator.engine import WorkflowEngine
 from cam.core.orchestrator.gates import GateResolutionError, issue_token, resolve_gate, verify_token
 from cam.core.orchestrator.idempotency import IdempotencyStore, InMemoryIdempotencyStore
+from cam.core.orchestrator.postgres_store import PostgresRunStore
 from cam.core.orchestrator.recovery import recovery_sweep
 from cam.core.orchestrator.states import (
     ApprovalDecision,
@@ -39,6 +40,7 @@ __all__ = [
     "IllegalTransitionError",
     "InMemoryIdempotencyStore",
     "InMemoryRunStore",
+    "PostgresRunStore",
     "MCPApprovalChannel",
     "RunStatus",
     "StepContext",
