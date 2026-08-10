@@ -357,6 +357,116 @@ specs:
       - name: document_extract
         from: data-extraction
 
+  # ===== New features — post-Phase 2 additions =====
+
+  - id: casemat-cli
+    title: "casemat CLI — zero-friction local bootstrap + connector scaffold"
+    type: unit
+    status: planned
+    spec_level: mini  # requirements + spec only
+    file: specs/casemat-cli/spec.md
+    depends_on: [platform-foundation, domain-packs, connector-framework]
+    produces:
+      - name: cli_tool
+        shape: "casemat start | init --connector | status | stop"
+        consumers: []
+    consumes:
+      - name: domain_pack
+        from: domain-packs
+      - name: case_port
+        from: connector-framework
+    impl_note: >-
+      Developer-experience CLI. `casemat start` bootstraps Postgres + Redis +
+      migrations + seed data + sidecar in one command. `casemat init --connector`
+      scaffolds a new adapter. Mini-spec (requirements + spec only).
+
+  - id: pack-inspector
+    title: "Pack inspector — runtime-visible domain pack configuration"
+    type: unit
+    status: planned
+    spec_level: mini  # requirements + spec only
+    file: specs/pack-inspector/spec.md
+    depends_on: [domain-packs]
+    produces:
+      - name: pack_inspect_endpoint
+        shape: "GET /packs + GET /packs/{name}/inspect — resolved pack config (PII-redacted)"
+        consumers: []
+    consumes:
+      - name: domain_pack
+        from: domain-packs
+    impl_note: >-
+      Read-only HTTP endpoint exposing resolved pack configuration. PII patterns
+      shown as counts only, never source strings. Makes the tighten-only
+      restriction policy and PII floor observable at runtime. Mini-spec.
+
+  - id: chaos-runner
+    title: "Chaos/scenario runner — living NFR evidence"
+    type: unit
+    status: planned
+    spec_level: full  # four-phase spec
+    file: specs/chaos-runner/spec.md
+    depends_on: [platform-foundation, workflow-orchestration, connector-framework, domain-packs]
+    produces:
+      - name: chaos_scenarios
+        shape: "pytest tests/chaos/ — 6 named scenarios proving NFR-9, audit integrity, HMAC, idempotency"
+        consumers: []
+    consumes:
+      - name: workflow_engine
+        from: workflow-orchestration
+      - name: webhook_events
+        from: connector-framework
+      - name: audit_log
+        from: platform-foundation
+      - name: domain_pack
+        from: domain-packs
+    impl_note: >-
+      Full four-phase spec. 6 chaos scenarios: Postgres death mid-workflow,
+      connector 500 retry, malformed webhook, Redis unavailable, pack
+      validation refuse-to-serve, audit chain tamper. Each maps to a specific
+      NFR. Requires live Postgres + Redis in CI.
+
+  - id: replay-harness
+    title: "Deterministic replay — record-and-replay for workflow debugging"
+    type: unit
+    status: planned
+    spec_level: mini  # requirements + spec only
+    file: specs/replay-harness/spec.md
+    depends_on: [qc-verification, platform-foundation, domain-packs]
+    produces:
+      - name: replay_tool
+        shape: "record(packet, outputs) -> JSON fixture; replay(fixture) -> byte-identical assertion"
+        consumers: []
+    consumes:
+      - name: qc_verify
+        from: qc-verification
+      - name: audit_log
+        from: platform-foundation
+      - name: domain_pack
+        from: domain-packs
+    impl_note: >-
+      Record-and-replay for QC/workflow debugging. Captures packet + outputs
+      to JSON, re-runs and asserts byte-identical results via canonical JSON
+      hash (ADR-1). pytest integration via --replay-dir. Mini-spec.
+
+  - id: run-timeline
+    title: "Run timeline / history view — durable state machine visualization"
+    type: unit
+    status: planned
+    spec_level: mini  # requirements + spec only
+    file: specs/run-timeline/spec.md
+    depends_on: [workflow-orchestration]
+    produces:
+      - name: run_timeline_endpoint
+        shape: "GET /runs + GET /runs/{id} — paginated run list + step timeline (Jinja2)"
+        consumers: []
+    consumes:
+      - name: workflow_engine
+        from: workflow-orchestration
+    impl_note: >-
+      Server-rendered web view of workflow runs and step progression. Proves
+      gates persist across restarts, steps have timestamps, parked runs are
+      visible. Jinja2 + minimal CSS, no SPA. Mini-spec.
+
 # ---------------------------------------------------------------------------
 # milestones — reporting/deployment groupings by architectural layer.
 # Do NOT govern execution order (the DAG does). Layer names map loosely to the
@@ -383,6 +493,14 @@ milestones:
       All 4 workflows implemented with tests. Intake + routing config sourced
       from the active domain pack. PDF conversion stub remains (Phase 1.4).
 
+  - name: tooling              # post-Phase 2 developer experience + credibility
+    specs: [casemat-cli, pack-inspector, chaos-runner, replay-harness, run-timeline]
+    status: not_started
+    note: >-
+      Five new features from PM/advisor assessment. Implementation order:
+      casemat-cli (unblock forkers), pack-inspector (security model visible),
+      chaos-runner (NFR evidence), run-timeline (durability visualization),
+      replay-harness (debugging tooling).
 # ---------------------------------------------------------------------------
 # history — append-only audit trail. Never edit or delete past entries.
 # Project status flipped to `executing` on 2026-08-10 after all 11 specs
@@ -465,6 +583,48 @@ history:
       read the active pack; intake is populated at startup but immigration
       defaults remain in core; status-update + RBAC not yet pack-driven (6.5);
       no-hardcoded-immigration sweep tracked as xfail (6.6).
+  - timestamp: 2026-08-10T16:30:00Z
+    event: spec_added
+    ref: casemat-cli
+    by: operator:RA
+    note: >-
+      Mini-spec (requirements + spec). Developer-experience CLI: casemat start
+      bootstraps the full stack in one command; casemat init --connector scaffolds
+      adapters. PM/advisor recommendation #1 (revised).
+  - timestamp: 2026-08-10T16:31:00Z
+    event: spec_added
+    ref: pack-inspector
+    by: operator:RA
+    note: >-
+      Mini-spec (requirements + spec). Read-only HTTP endpoint exposing
+      resolved domain pack configuration with PII redaction. Makes the
+      tighten-only restriction policy observable at runtime. PM/advisor
+      recommendation #2 (revised).
+  - timestamp: 2026-08-10T16:32:00Z
+    event: spec_added
+    ref: chaos-runner
+    by: operator:RA
+    note: >-
+      Full four-phase spec. 6 chaos scenarios proving NFR-9, audit integrity,
+      HMAC verification, idempotency, pack validation. Maps 1:1 to NFRs and
+      security-audit checklist. Strongest credibility signal. PM/advisor
+      recommendation #3 (revised).
+  - timestamp: 2026-08-10T16:33:00Z
+    event: spec_added
+    ref: replay-harness
+    by: operator:RA
+    note: >-
+      Mini-spec (requirements + spec). Record-and-replay for workflow/QC
+      debugging via canonical JSON hash (ADR-1). pytest integration. PM/advisor
+      recommendation #4 (revised).
+  - timestamp: 2026-08-10T16:34:00Z
+    event: spec_added
+    ref: run-timeline
+    by: operator:RA
+    note: >-
+      Mini-spec (requirements + spec). Server-rendered web view of workflow
+      runs and step progression. Proves gate persistence and durability
+      visually. Jinja2, no SPA. PM/advisor recommendation #5 (revised).
   - timestamp: 2026-08-10T14:35:00Z
     event: status_changed
     ref: project
