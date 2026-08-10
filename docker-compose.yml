@@ -1,0 +1,102 @@
+# Case Automation MCP Server — docker-compose for local development and production
+#
+# Usage:
+#   docker compose up              # start everything
+#   docker compose up postgres redis  # just the infrastructure (for local dev)
+#   docker compose up sidecar      # just the API
+#
+# Environment:
+#   Copy .env.example to .env and fill in values.
+#   The KEK must be a base64-encoded 32-byte key:
+#     python3 -c "import secrets, base64; print(base64.b64encode(secrets.token_bytes(32)).decode())"
+
+services:
+  # ─── Infrastructure ───────────────────────────────────────────────
+
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: ${CAM_DB_NAME:-cam}
+      POSTGRES_USER: ${CAM_DB_USER:-cam}
+      POSTGRES_PASSWORD: ${CAM_DB_PASSWORD:-cam_dev_pw}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${CAM_DB_USER:-cam}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ─── Application ──────────────────────────────────────────────────
+
+  sidecar:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      CAM_DATABASE_URL: postgresql+asyncpg://${CAM_DB_USER:-cam}:${CAM_DB_PASSWORD:-cam_dev_pw}@postgres:5432/${CAM_DB_NAME:-cam}
+      CAM_REDIS_URL: redis://redis:6379/0
+      CAM_SECRET_BACKEND: env
+      CAM_ENCRYPTION_KEK: ${CAM_ENCRYPTION_KEK:-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=}
+      CAM_DOMAIN_PACK: ${CAM_DOMAIN_PACK:-immigration}
+      CAM_PDF_ENGINE: ${CAM_PDF_ENGINE:-auto}
+      CAM_LOG_LEVEL: ${CAM_LOG_LEVEL:-INFO}
+    ports:
+      - "8001:8001"
+    # Run migrations then start the sidecar
+    command: >
+      sh -c "uv run alembic upgrade head &&
+             uv run uvicorn cam.sidecar.main:app --host 0.0.0.0 --port 8001"
+    restart: unless-stopped
+
+  worker:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      CAM_DATABASE_URL: postgresql+asyncpg://${CAM_DB_USER:-cam}:${CAM_DB_PASSWORD:-cam_dev_pw}@postgres:5432/${CAM_DB_NAME:-cam}
+      CAM_REDIS_URL: redis://redis:6379/0
+      CAM_SECRET_BACKEND: env
+      CAM_ENCRYPTION_KEK: ${CAM_ENCRYPTION_KEK:-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=}
+      CAM_DOMAIN_PACK: ${CAM_DOMAIN_PACK:-immigration}
+      CAM_LOG_LEVEL: ${CAM_LOG_LEVEL:-INFO}
+    command: >
+      sh -c "uv run alembic upgrade head &&
+             uv run celery -A cam.sidecar.celery_app worker -Q cam_deadline --loglevel=info"
+    restart: unless-stopped
+
+  beat:
+    build: .
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      CAM_DATABASE_URL: postgresql+asyncpg://${CAM_DB_USER:-cam}:${CAM_DB_PASSWORD:-cam_dev_pw}@postgres:5432/${CAM_DB_NAME:-cam}
+      CAM_REDIS_URL: redis://redis:6379/0
+      CAM_SECRET_BACKEND: env
+      CAM_ENCRYPTION_KEK: ${CAM_ENCRYPTION_KEK:-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=}
+      CAM_DOMAIN_PACK: ${CAM_DOMAIN_PACK:-immigration}
+    command: >
+      uv run celery -A cam.sidecar.celery_app beat --loglevel=info
+    restart: unless-stopped
+
+volumes:
+  pgdata:

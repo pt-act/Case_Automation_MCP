@@ -118,11 +118,25 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     except Exception:
         app.state.signing_key = b"\x00" * 32
 
-    # 6. Webhook secrets and mocks (replaced by real connectors at production)
+    # 6. Run store — PostgresRunStore (production) or InMemoryRunStore (fallback)
+    try:
+        from cam.config.settings import Settings
+        from cam.core.orchestrator.postgres_store import PostgresRunStore
+        from cam.persistence.uow import get_session_factory
+
+        settings = Settings.model_validate({})
+        factory = get_session_factory()
+        app.state.run_store = PostgresRunStore(factory)
+        log.info("sidecar.run_store_ready", backend="postgres")
+    except Exception as exc:
+        from cam.core.orchestrator.store import InMemoryRunStore
+        app.state.run_store = InMemoryRunStore()
+        log.warning("sidecar.run_store_fallback", backend="in_memory", error=str(exc))
+
+    # 7. Webhook secrets and mocks (replaced by real connectors at production)
     app.state.webhook_secrets = {}    # connector_name → HMAC secret
     app.state.redis_client = None     # injected by production bootstrap
     app.state.trigger_sink = _NoopTriggerSink()
-    app.state.run_store = None
 
     log.info("sidecar.ready")
     yield

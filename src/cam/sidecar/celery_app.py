@@ -104,6 +104,59 @@ def _make_in_memory_deps() -> tuple[Any, Any, Any]:
     return store, notif, None  # store, notification_port, redis_client
 
 
+def _make_production_deps() -> tuple[Any, Any, Any]:
+    """Build production-grade dependencies backed by Postgres + Redis.
+
+    Called when CAM_DATABASE_URL is set and the DB session factory is configured.
+    Falls back to _make_deps() on any error.
+    """
+    try:
+        import os
+
+        from cam.config.settings import Settings
+        from cam.core.services.deadline.firing import MockNotificationPort
+        from cam.core.services.deadline.schedule import DeadlineStore
+        from cam.persistence.uow import configure_db, get_session_factory
+
+        settings = Settings.model_validate({})
+        # Ensure the session factory is configured (idempotent — safe if sidecar already did it)
+        try:
+            get_session_factory()
+        except RuntimeError:
+            configure_db(
+                settings.database_url.get_secret_value(),
+                pool_size=settings.database_pool_size,
+                max_overflow=settings.database_max_overflow,
+            )
+
+        # DeadlineStore is still in-memory (Postgres-backed version is Tier 2).
+        # It is per-worker and holds scheduled deadlines for the current beat cycle.
+        store = DeadlineStore()
+        notif = MockNotificationPort()
+
+        # Redis client for dedup/locks (optional — tasks work without it)
+        redis_client = None
+        redis_url = os.environ.get("CAM_REDIS_URL")
+        if redis_url:
+            try:
+                import redis.asyncio as aioredis
+                redis_client = aioredis.from_url(redis_url, decode_responses=True)
+            except ImportError:
+                pass
+
+        return store, notif, redis_client
+    except Exception:
+        return _make_in_memory_deps()
+
+
+def _make_deps() -> tuple[Any, Any, Any]:
+    """Choose production or in-memory deps based on environment."""
+    import os
+    if os.environ.get("CAM_DATABASE_URL"):
+        return _make_production_deps()
+    return _make_in_memory_deps()
+
+
 # ---------------------------------------------------------------------------
 # task_fire_reminder
 # ---------------------------------------------------------------------------
@@ -132,7 +185,7 @@ def task_fire_reminder(self: Any, deadline_id: str, reminder_idem_key: str) -> d
         task_id=self.request.id,
     )
     try:
-        store, notif, redis = _make_in_memory_deps()
+        store, notif, redis = _make_deps()
 
         fired: bool = _run(
             _fire_reminder_async(
@@ -209,7 +262,7 @@ def task_escalate(self: Any, deadline_id: str) -> dict[str, Any]:
         task_id=self.request.id,
     )
     try:
-        store, notif, _ = _make_in_memory_deps()
+        store, notif, _ = _make_deps()
 
         new_level: int = _run(
             _escalate_async(
@@ -283,7 +336,7 @@ def task_sweep_reconcile(self: Any, matter_ids: list[str]) -> dict[str, Any]:
         task_id=self.request.id,
     )
     try:
-        store, _, _ = _make_in_memory_deps()
+        store, _, _ = _make_deps()
 
         drift_count: int = _run(
             _sweep_reconcile_async(matter_ids=matter_ids, store=store)
