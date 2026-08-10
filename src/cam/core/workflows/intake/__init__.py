@@ -12,8 +12,6 @@ from cam.core.workflows.intake.types import (
 )
 from cam.core.workflows.intake.workflow import (
     IntakeServices,
-    configure_services,
-    get_services,
     register_intake_workflow,
     tool_intake_run,
 )
@@ -28,9 +26,7 @@ __all__ = [
     "LeadPayload",
     "MatchRef",
     "TaskTemplate",
-    "configure_services",
     "get_intake_config",
-    "get_services",
     "register_intake_workflow",
     "set_intake_config",
     "tool_intake_run",

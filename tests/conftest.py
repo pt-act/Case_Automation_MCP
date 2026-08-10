@@ -46,14 +46,7 @@ def _reset_global_singletons() -> None:
     packs.select_pack("immigration")
     obs_mod.configure_pii_patterns()  # baseline ∪ immigration (A-number, passport)
 
-    # Workflow service containers
-    import cam.core.workflows.intake.workflow as intake_wf
-    intake_wf._services = None
-
-    import cam.core.workflows.status_update.workflow as su_wf
-    su_wf._services = None
-
-    # Orchestrator DSL registry (tests that don't have their own autouse fixture)
+# Orchestrator DSL registry (tests that don't have their own autouse fixture)
     # Note: individual test files that use @workflow should also call clear_registry()
     # via their own autouse fixtures; this is a safety net only.
 

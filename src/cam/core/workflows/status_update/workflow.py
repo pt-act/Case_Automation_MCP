@@ -46,15 +46,13 @@ class StatusUpdateServices:
 # ---------------------------------------------------------------------------
 
 
-def register_status_update_workflow(services: StatusUpdateServices | None = None) -> None:
+def register_status_update_workflow(services: StatusUpdateServices) -> None:
     """Register the status-update-emails workflow with the orchestration engine.
 
     Args:
-        services: Dependencies captured via closure.  If None, falls back to
-                  the deprecated configure_status_update_services() singleton
-                  for backward compatibility.
+        services: Dependencies captured via closure.  No global state.
     """
-    svc: StatusUpdateServices = services or get_services()
+    svc: StatusUpdateServices = services
 
     @workflow("status_update_email", version=1)
     class StatusUpdateWorkflow:
@@ -176,25 +174,6 @@ def register_status_update_workflow(services: StatusUpdateServices | None = None
                 svc.status_store.mark_delivered(delta.change_id, ctx.run_id)
             return {"delivered": send_out.get("sent", False)}
 
-
-# ---------------------------------------------------------------------------
-# Backward-compatibility shim  (deprecated)
-# ---------------------------------------------------------------------------
-
-_services: StatusUpdateServices | None = None
-
-
-def configure_status_update_services(svc: StatusUpdateServices) -> None:
-    """Deprecated: pass services directly to register_status_update_workflow(services)."""
-    global _services
-    _services = svc
-
-
-def get_services() -> StatusUpdateServices:
-    """Deprecated: services are now closure-injected at registration time."""
-    if _services is None:
-        raise RuntimeError("Status-update services not configured.")
-    return _services
 
 
 # ---------------------------------------------------------------------------

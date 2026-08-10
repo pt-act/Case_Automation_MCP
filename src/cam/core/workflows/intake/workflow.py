@@ -8,11 +8,7 @@ Workflow steps (exactly per PTD §7):
 **Dependency injection:** services are passed explicitly to `register_intake_workflow(services)`.
 The workflow class captures them via closure — no module-level mutable singleton.
 
-Before (fragile):
-    configure_services(svc)   # mutates global
-    register_intake_workflow()
-
-After (explicit):
+Usage:
     register_intake_workflow(services)  # services injected at registration time
 """
 
@@ -230,27 +226,3 @@ async def tool_intake_run(
     return {"run_id": run.id, "status": run.status, "current_step": run.current_step,
             "is_new": run.trigger.dedupe_key == idempotency_key}
 
-
-# ---------------------------------------------------------------------------
-# Backward-compatibility shim  (deprecated — use register_intake_workflow(services))
-# ---------------------------------------------------------------------------
-
-_services: IntakeServices | None = None
-
-
-def configure_services(svc: IntakeServices) -> None:
-    """Deprecated: pass services directly to register_intake_workflow(services)."""
-    global _services
-    _services = svc
-    log.warning("intake.configure_services.deprecated",
-                msg="Use register_intake_workflow(services) directly.")
-
-
-def get_services() -> IntakeServices:
-    """Deprecated: services are now closure-injected at registration time."""
-    if _services is None:
-        raise RuntimeError(
-            "Intake services not configured. "
-            "Call register_intake_workflow(services)."
-        )
-    return _services
