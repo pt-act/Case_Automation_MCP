@@ -26,6 +26,7 @@ import structlog
 from cam.connectors.errors import ConnectorError
 from cam.core.orchestrator.dsl import GateConfig, StepContext, get_workflow_latest
 from cam.core.orchestrator.idempotency import IdempotencyStore, InMemoryIdempotencyStore
+from cam.core.orchestrator.locking import RunLock
 from cam.core.orchestrator.states import (
     GateRequest,
     RunStatus,
@@ -64,14 +65,35 @@ class WorkflowEngine:
         idem_store: IdempotencyStore | None = None,
         audit_fn: Callable[..., Any] | None = None,
         signing_key: bytes = b"test-key-32-bytes-padded-0000000",
+        run_lock: RunLock | None = None,
     ) -> None:
         self.store = store
         self.idem = idem_store or InMemoryIdempotencyStore()
         self.audit = audit_fn
         self.signing_key = signing_key
+        self.run_lock = run_lock or RunLock()
 
     async def execute(self, run_id: str) -> WorkflowRun:
-        """Advance the run until it reaches a terminal/gate/park state."""
+        """Advance the run until it reaches a terminal/gate/park state.
+
+        Acquires a distributed lock (Redis SETNX) before executing to prevent
+        concurrent execution by multiple workers.  When no Redis is configured,
+        locking is a no-op (single-worker mode is safe).
+        """
+        if not await self.run_lock.acquire(run_id):
+            log.info("engine.run_skipped_locked", run_id=run_id)
+            run = await self.store.get_run(run_id)
+            if run is None:
+                raise KeyError(f"Run {run_id!r} not found.")
+            return run  # type: ignore[no-any-return]
+
+        try:
+            return await self._execute(run_id)
+        finally:
+            await self.run_lock.release(run_id)
+
+    async def _execute(self, run_id: str) -> WorkflowRun:
+        """Internal execute — called with the run lock held."""
         run = await self.store.get_run(run_id)
         if run is None:
             raise KeyError(f"Run {run_id!r} not found.")
