@@ -20,6 +20,7 @@ from cam.connectors.ports import (
     MatterDraft,
     TriggerSink,
 )
+from cam.connectors.redis_health import RedisConnectorHealth
 from cam.connectors.registry import (
     ConnectorNotFoundError,
     get_connector,
@@ -33,6 +34,7 @@ __all__ = [
     "CRMConnector",
     "ConnectorError",
     "ConnectorHealth",
+    "RedisConnectorHealth",
     "ConnectorNotFoundError",
     "DocStoreConnector",
     "EmailConnector",
