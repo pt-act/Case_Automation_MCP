@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 
 from cam.core.orchestrator.dsl import GateConfig, StepContext, clear_registry, workflow
@@ -130,3 +132,29 @@ def test_token_verify_wrong_key() -> None:
     raw_token, _ = issue_token("gid", "rid", "GATE:step", "mcp", KEY)
     _, err = verify_token(raw_token, b"wrong-key-32-bytes-padded-00000")
     assert err == "tampered"
+
+
+# h. Approver reason is recorded on the decision and in the audit stream
+async def test_reason_recorded_on_decision() -> None:
+    store, run_id, raw_token, _ = await _build_gated_run("wf_reason")
+    audits: list[dict[str, Any]] = []
+
+    async def _audit(**kwargs: Any) -> None:
+        audits.append(kwargs)
+
+    await resolve_gate(
+        raw_token, "approve", "attorney", "mcp", KEY, store,
+        audit_fn=_audit, reason="Reviewed draft; ready to send",
+    )
+    decision = store.all_decisions()[0]
+    assert decision.reason == "Reviewed draft; ready to send"
+    approved = [a for a in audits if a.get("action") == "gate.approved"]
+    assert approved, "gate.approved must be audited"
+    assert approved[0]["inputs"]["reason"] == "Reviewed draft; ready to send"
+
+
+# i. Omitted reason stays None (backwards compatible)
+async def test_reason_defaults_to_none() -> None:
+    store, run_id, raw_token, _ = await _build_gated_run("wf_no_reason")
+    await resolve_gate(raw_token, "approve", "attorney", "mcp", KEY, store)
+    assert store.all_decisions()[0].reason is None

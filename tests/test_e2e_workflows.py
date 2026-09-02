@@ -257,3 +257,26 @@ async def test_e2e_05_duplicate_lead_produces_single_run() -> None:
 
     assert r1["run_id"] == r2["run_id"], "Duplicate trigger must return the same run"
     assert len(run_store._runs) == 1, "Only one run should exist"
+    assert r1["is_new"] is True, "First submission must report a new run"
+    assert r2["is_new"] is False, "Duplicate submission must report the existing run"
+
+
+async def test_e2e_06_workflow_run_reports_is_new() -> None:
+    """workflow.run reports is_new=False when the idem key dedupes to an existing run."""
+    from cam.mcp_server.workflow_tools import WorkflowRunInput, tool_workflow_run
+
+    services = _make_services()
+    register_intake_workflow(services)
+
+    run_store = InMemoryRunStore()
+    inp = WorkflowRunInput(
+        workflow="intake",
+        context={"lead": _make_lead().model_dump(mode="json")},
+        idem_key="e2e-06-idem-001",
+    )
+    out1 = await tool_workflow_run(inp, run_store)
+    out2 = await tool_workflow_run(inp, run_store)
+
+    assert out1.is_new is True
+    assert out2.is_new is False
+    assert out1.run_id == out2.run_id
