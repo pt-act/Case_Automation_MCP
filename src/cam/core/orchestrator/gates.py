@@ -146,6 +146,7 @@ async def resolve_gate(
     signing_key: bytes,
     store: Any,  # RunStore protocol
     audit_fn: Any | None = None,  # AuditService.record — optional
+    reason: str | None = None,
 ) -> ApprovalDecision:
     """Verify token → expiry → single-use → authz → record → resume/reject.
 
@@ -224,6 +225,7 @@ async def resolve_gate(
         channel=channel,
         token_id=token_id,
         decided_at=decided_at,
+        reason=reason,
     )
     await store.save_approval_decision(approval_decision)
 
@@ -235,7 +237,8 @@ async def resolve_gate(
     action = "gate.approved" if decision == "approve" else "gate.rejected"
     await _maybe_audit(
         audit_fn, actor, action,
-        {"run_id": run_id, "step": step, "channel": channel, "token_id": token_id}
+        {"run_id": run_id, "step": step, "channel": channel, "token_id": token_id,
+         "reason": reason}
     )
 
     new_run_status = RunStatus.RUNNING if decision == "approve" else RunStatus.REJECTED

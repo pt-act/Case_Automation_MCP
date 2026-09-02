@@ -31,6 +31,7 @@ async def start_run(
     trigger: TriggerRef,
     store: Any,
     idem_key: str | None = None,
+    run_id: str | None = None,
 ) -> WorkflowRun:
     """Create and enqueue a new workflow run — idempotent on dedupe_key.
 
@@ -43,6 +44,9 @@ async def start_run(
         trigger: How the run was triggered.
         store: RunStore (in-memory for tests, SQLAlchemy for prod).
         idem_key: Optional explicit dedupe key (overrides trigger.dedupe_key).
+        run_id: Optional caller-supplied run id.  Callers that need to report
+            whether a fresh run was created can supply one and compare it to
+            the returned run's id (a dedupe hit returns the existing run).
     """
     defn = get_workflow_latest(workflow_name)
     defn.validate_context(context)
@@ -52,7 +56,7 @@ async def start_run(
         trigger = trigger.model_copy(update={"dedupe_key": dedupe_key})
 
     now = datetime.now(tz=UTC)
-    run_id = str(uuid.uuid4())
+    run_id = run_id or str(uuid.uuid4())
 
     run = WorkflowRun(
         id=run_id,

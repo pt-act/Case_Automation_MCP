@@ -361,6 +361,8 @@ async def test_duplicate_lead_same_run() -> None:
     r1 = await tool_intake_run(lead, store, idempotency_key="idem-abc")
     r2 = await tool_intake_run(lead, store, idempotency_key="idem-abc")
     assert r1["run_id"] == r2["run_id"]
+    assert r1["is_new"] is True
+    assert r2["is_new"] is False
 
 
 # ──────────────────────────────────────────────────────────────

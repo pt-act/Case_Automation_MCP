@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
@@ -13,6 +13,14 @@ from fastapi.testclient import TestClient
 from cam.connectors.reference import ReferenceCaseConnector
 from cam.connectors.registry import clear_registry, register_connector
 from cam.connectors.webhook.pipeline import reference_normaliser
+from cam.core.orchestrator.gates import issue_token
+from cam.core.orchestrator.states import (
+    GateRequest,
+    RunStatus,
+    TriggerRef,
+    WorkflowRun,
+)
+from cam.core.orchestrator.store import InMemoryRunStore
 from cam.sidecar.main import create_app
 
 NOW = datetime(2026, 6, 1, 12, 0, 0, tzinfo=UTC)
@@ -52,6 +60,12 @@ def client():
 
     sink = _FakeSink()
     redis = _FakeRedis()
+
+    # Simulate an authenticated approver session (production wires SSO here).
+    @app.middleware("http")
+    async def _fake_auth(request, call_next):  # type: ignore[no-untyped-def]
+        request.state.user_identity = "attorney"
+        return await call_next(request)
 
     app.state.webhook_secrets = {"reference": WEBHOOK_SECRET}
     app.state.redis_client = redis
@@ -143,7 +157,6 @@ def test_webhook_unknown_event_type_202(client):
 
 
 def _make_raw_token(gate_id: str, run_id: str, step: str = "GATE:approve") -> str:
-    from cam.core.orchestrator.gates import issue_token
     raw_token, _ = issue_token(gate_id, run_id, step, "web", SIGNING_KEY)
     return raw_token
 
@@ -177,3 +190,79 @@ def test_approval_post_bad_decision_400(client):
     token = _make_raw_token("gate-1", "run-1")
     r = client.post(f"/approvals/{token}", data={"decision": "maybe"})
     assert r.status_code in (400, 422, 503), f"Unexpected status {r.status_code}"
+
+
+# ---------------------------------------------------------------------------
+# Approval UI — human-readable pages, reason capture, workflow context
+# ---------------------------------------------------------------------------
+
+
+async def _seed_gated_run(
+    app, run_id: str = "run-web-1", gate_id: str = "gate-web-1", ttl_seconds: int = 86400
+) -> tuple[InMemoryRunStore, str]:
+    """Create a run + pending gate + token and wire the store into the app."""
+    store = InMemoryRunStore()
+    now = datetime.now(tz=UTC)
+    store._runs[run_id] = WorkflowRun(
+        id=run_id,
+        workflow="intake",
+        workflow_version=1,
+        status=RunStatus.AWAITING_APPROVAL,
+        trigger=TriggerRef(kind="agent", source="test"),
+        created_at=now,
+        updated_at=now,
+    )
+    await store.create_gate_request(
+        GateRequest(
+            id=gate_id,
+            run_id=run_id,
+            step="GATE:human_review",
+            required_role="attorney",
+            status="pending",
+            created_at=now,
+            expires_at=now + timedelta(seconds=ttl_seconds),
+        )
+    )
+    raw_token, token_record = issue_token(gate_id, run_id, "GATE:human_review", "web",
+                                          SIGNING_KEY, ttl_seconds=ttl_seconds)
+    await store.save_token(token_record)
+    app.state.run_store = store
+    return store, raw_token
+
+
+async def test_approval_page_shows_workflow_and_reason_field(client):
+    _, raw_token = await _seed_gated_run(client.app)
+    r = client.get(f"/approvals/{raw_token}")
+    assert r.status_code == 200
+    assert "intake" in r.text, "Page should show the workflow being approved"
+    assert 'name="reason"' in r.text, "Page should offer a reason field"
+
+
+async def test_approval_page_invalid_token_is_html_401(client):
+    token = _make_raw_token("gate-1", "run-1")
+    tampered = token[:-4] + "XXXX"
+    r = client.get(f"/approvals/{tampered}")
+    assert r.status_code == 401
+    assert "<html" in r.text.lower(), "Error must render as a page, not JSON"
+
+
+async def test_approval_post_success_renders_confirmation_and_reason(client):
+    store, raw_token = await _seed_gated_run(client.app)
+    r = client.post(
+        f"/approvals/{raw_token}",
+        data={"decision": "approve", "reason": "Reviewed the draft; ready to send"},
+    )
+    assert r.status_code == 200
+    assert "recorded" in r.text.lower(), "Approver must get a readable confirmation"
+    decision = store.all_decisions()[0]
+    assert decision.decision == "approve"
+    assert decision.channel == "web"
+    assert decision.reason == "Reviewed the draft; ready to send"
+
+
+async def test_approval_post_expired_token_renders_html_error(client):
+    _, raw_token = await _seed_gated_run(client.app, ttl_seconds=-1)
+    r = client.post(f"/approvals/{raw_token}", data={"decision": "approve"})
+    assert r.status_code == 401
+    assert "expired" in r.text.lower()
+    assert "<html" in r.text.lower()

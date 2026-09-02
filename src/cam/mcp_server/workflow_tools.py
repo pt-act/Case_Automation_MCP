@@ -54,21 +54,25 @@ async def tool_workflow_run(
 
     Risk tier: write (confirm).  Starting a run never bypasses inner gates.
     """
+    import uuid
+
     from cam.core.orchestrator.triggers import make_agent_trigger, start_run
 
     trigger = make_agent_trigger(actor, idem_key=inp.idem_key)
+    candidate_id = str(uuid.uuid4())
     run = await start_run(
         workflow_name=inp.workflow,
         context=inp.context,
         trigger=trigger,
         store=store,
         idem_key=inp.idem_key,
+        run_id=candidate_id,
     )
     return WorkflowRunOutput(
         run_id=run.id,
         status=run.status,
         current_step=run.current_step,
-        is_new=True,  # simplified — the store dedup handles idempotency
+        is_new=run.id == candidate_id,
     )
 
 
@@ -196,6 +200,7 @@ async def tool_approval_decide(
         signing_key=signing_key,
         store=store,
         audit_fn=audit_fn,
+        reason=inp.reason,
     )
     return ApprovalDecideOutput(
         gate_request_id=decision_record.gate_request_id,

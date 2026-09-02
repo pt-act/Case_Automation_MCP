@@ -15,6 +15,7 @@ Usage:
 from __future__ import annotations
 
 import hashlib
+import uuid
 from dataclasses import dataclass
 from typing import Any
 
@@ -218,11 +219,13 @@ async def tool_intake_run(
         idempotency_key = hashlib.sha256(base.encode()).hexdigest()[:16]
 
     trigger = make_agent_trigger(actor, idem_key=idempotency_key)
+    candidate_id = str(uuid.uuid4())
     context = {"lead": lead.model_dump(mode="json"), "case_type_hint": case_type_hint}
     run = await start_run(
         workflow_name="intake", context=context,
         trigger=trigger, store=run_store, idem_key=idempotency_key,
+        run_id=candidate_id,
     )
     return {"run_id": run.id, "status": run.status, "current_step": run.current_step,
-            "is_new": run.trigger.dedupe_key == idempotency_key}
+            "is_new": run.id == candidate_id}
 
